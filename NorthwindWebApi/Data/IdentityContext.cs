@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using NorthwindWebApi.Entities;
 using NorthwindWebApi.Models;
 using System;
 using System.Collections.Generic;
@@ -8,14 +9,11 @@ using System.Threading.Tasks;
 
 namespace NorthwindWebApi.Data
 {
-    public class IdentityContext : IdentityDbContext
+    public class IdentityContext : IdentityDbContext<ApplicationUser>
     {
         public IdentityContext(DbContextOptions<IdentityContext> options) : base(options)
         { 
-            
         }
-
-        //public DbSet<Employees> Employees { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {

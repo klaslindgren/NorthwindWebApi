@@ -17,6 +17,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using NorthwindWebApi.Data;
+using NorthwindWebApi.Entities;
 
 namespace NorthwindWebApi
 {
@@ -36,9 +37,10 @@ namespace NorthwindWebApi
 
             services.AddControllers();
 
-            services.AddIdentity<IdentityUser, IdentityRole>()
+            services.AddIdentity<ApplicationUser, IdentityRole>()
                     .AddEntityFrameworkStores<IdentityContext>()
-                    .AddDefaultTokenProviders();
+                    .AddDefaultTokenProviders()
+                    .AddRoles<IdentityRole>();
 
             services.AddAuthentication(options =>
             {
