@@ -34,6 +34,7 @@ namespace NorthwindWebApi
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddDbContext<IdentityContext>(options => options.UseSqlServer(Configuration.GetConnectionString("IdentityContext")));
+            services.AddDbContext<NorthwindContext>(options => options.UseSqlServer(Configuration.GetConnectionString("NorthwindContext")));
 
             services.AddControllers();
 
