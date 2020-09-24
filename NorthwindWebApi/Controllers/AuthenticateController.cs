@@ -48,10 +48,13 @@ namespace NorthwindWebApi.Controllers
             {
                 var userRoles = await userManager.GetRolesAsync(user);
 
+                var country = northwindContext.Employees.Find(user.EmployeeID).Country.ToString();
+
                 var authClaims = new List<Claim>
                 {
                     new Claim(ClaimTypes.Name, user.UserName),
                     new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+                    new Claim(ClaimTypes.Country, country)
                 };
 
                 foreach (var userRole in userRoles)
@@ -118,9 +121,10 @@ namespace NorthwindWebApi.Controllers
             using (SqlConnection connection = new SqlConnection(northwindContext.Database.GetDbConnection().ConnectionString))          //      Add user to Northwind
             {
                 connection.Open();
-                SqlCommand command = new SqlCommand("INSERT INTO Employees (LastName, FirstName) VALUES (@LastName, @FirstName)", connection);
+                SqlCommand command = new SqlCommand("INSERT INTO Employees (LastName, FirstName, Country) VALUES (@LastName, @FirstName, @Country)", connection);
                 command.Parameters.AddWithValue("@LastName", model.LastName);
                 command.Parameters.AddWithValue("@FirstName", model.FirstName);
+                command.Parameters.AddWithValue("@Country", model.Country);
                 command.ExecuteNonQuery();
             }
 
@@ -141,41 +145,9 @@ namespace NorthwindWebApi.Controllers
             if (identityContext.Users.Count() == 1)                         //  First user created gets Admin-role
                 await userManager.AddToRoleAsync(user, Roles.Admin);
 
-            else
-                await userManager.AddToRoleAsync(user, Roles.Employee);     //  All other users gets Employee-role, Further roles can be added by admin
+            await userManager.AddToRoleAsync(user, Roles.Employee);     //  All other users gets Employee-role, Further roles can be added by admin
 
             return Ok(new Response { Status = "Success", Message = "User created successfully!" });
         }
-
-        //[HttpPost]
-        //[Route("register-admin")]
-        //public async Task<IActionResult> RegisterAdmin([FromBody] RegisterModel model)
-        //{
-        //    var userExists = await userManager.FindByNameAsync(model.Username);
-        //    if (userExists != null)
-        //        return StatusCode(StatusCodes.Status500InternalServerError, new Response { Status = "Error", Message = "User already exists!" });
-
-        //    ApplicationUser user = new ApplicationUser()
-        //    {
-        //        Email = model.Email,
-        //        SecurityStamp = Guid.NewGuid().ToString(),
-        //        UserName = model.Username
-        //    };
-        //    var result = await userManager.CreateAsync(user, model.Password);
-        //    if (!result.Succeeded)
-        //        return StatusCode(StatusCodes.Status500InternalServerError, new Response { Status = "Error", Message = "User creation failed! Please check user details and try again." });
-
-        //    if (!await roleManager.RoleExistsAsync(UserRoles.Admin))
-        //        await roleManager.CreateAsync(new IdentityRole(UserRoles.Admin));
-        //    if (!await roleManager.RoleExistsAsync(UserRoles.User))
-        //        await roleManager.CreateAsync(new IdentityRole(UserRoles.User));
-
-        //    if (await roleManager.RoleExistsAsync(UserRoles.Admin))
-        //    {
-        //        await userManager.AddToRoleAsync(user, UserRoles.Admin);
-        //    }
-
-        //    return Ok(new Response { Status = "Success", Message = "User created successfully!" });
-        //}
     }
 }

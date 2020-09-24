@@ -10,7 +10,7 @@ using NorthwindWebApi.Entities;
 
 namespace NorthwindWebApi.Controllers
 {
-    [Authorize(Roles = "Employee")]
+    [Authorize(Roles = "Vd")]
     [ApiController]
     [Route("[controller]")]
     public class WeatherForecastController : ControllerBase
