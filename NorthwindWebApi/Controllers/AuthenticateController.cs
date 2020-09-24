@@ -17,6 +17,7 @@ using System.Linq;
 using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
+using System.Security.Cryptography;
 
 namespace NorthwindWebApi.Controllers
 {
@@ -72,13 +73,19 @@ namespace NorthwindWebApi.Controllers
                     signingCredentials: new SigningCredentials(authSigningKey, SecurityAlgorithms.HmacSha256)
                     );
 
-                await userManager.SetAuthenticationTokenAsync(user, JwtBearerDefaults.AuthenticationScheme, "token", new JwtSecurityTokenHandler().WriteToken(token));
+
+                var refreshToken = GenerateRefreshToken();
+                user.RefreshTokens.Insert(0, refreshToken);
+                user.VerificationToken = new JwtSecurityTokenHandler().WriteToken(token);
+                await userManager.UpdateAsync(user);
 
                 return Ok(new
                 {
                     token = new JwtSecurityTokenHandler().WriteToken(token),
-                    expiration = token.ValidTo
-                });
+                    expiration = token.ValidTo,
+                    refreshToken = refreshToken.Token,
+                    refreshTokenExpiration = refreshToken.Expires
+                }) ;
             }
             return Unauthorized();
         }
@@ -148,6 +155,25 @@ namespace NorthwindWebApi.Controllers
             await userManager.AddToRoleAsync(user, Roles.Employee);     //  All other users gets Employee-role, Further roles can be added by admin
 
             return Ok(new Response { Status = "Success", Message = "User created successfully!" });
+        }
+
+        private RefreshToken GenerateRefreshToken()
+        {
+            return new RefreshToken
+            {
+                Token = RandomTokenString(),
+                Expires = DateTime.UtcNow.AddDays(1),
+                Created = DateTime.UtcNow,
+            };
+        }
+
+        private string RandomTokenString()
+        {
+            using var rngCryptoServiceProvider = new RNGCryptoServiceProvider();
+            var randomBytes = new byte[40];
+            rngCryptoServiceProvider.GetBytes(randomBytes);
+            // convert random bytes to hex string
+            return BitConverter.ToString(randomBytes).Replace("-", "");
         }
     }
 }

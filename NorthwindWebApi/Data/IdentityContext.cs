@@ -11,6 +11,8 @@ namespace NorthwindWebApi.Data
 {
     public class IdentityContext : IdentityDbContext<ApplicationUser>
     {
+
+        public override DbSet<ApplicationUser> Users {get; set;}
         public IdentityContext(DbContextOptions<IdentityContext> options) : base(options)
         { 
         }
