@@ -3,11 +3,14 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using NorthwindWebApi.Entities;
 
 namespace NorthwindWebApi.Controllers
 {
+    [Authorize(Roles = "Employee")]
     [ApiController]
     [Route("[controller]")]
     public class WeatherForecastController : ControllerBase
