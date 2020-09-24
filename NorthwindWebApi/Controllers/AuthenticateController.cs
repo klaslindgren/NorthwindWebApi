@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.SqlServer.Query.Internal;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using NorthwindWebApi.Data;
@@ -26,14 +27,16 @@ namespace NorthwindWebApi.Controllers
         private readonly UserManager<ApplicationUser> userManager;
         private readonly RoleManager<IdentityRole> roleManager;
         private readonly IConfiguration _configuration;
-        private readonly NorthwindContext context;
+        private readonly NorthwindContext northwindContext;
+        private readonly IdentityContext identityContext;
 
-        public AuthenticateController(UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager, IConfiguration configuration, NorthwindContext context)
+        public AuthenticateController(UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager, IConfiguration configuration, NorthwindContext northwindContext, IdentityContext identityContext)
         {
             this.userManager = userManager;
             this.roleManager = roleManager;
             _configuration = configuration;
-            this.context = context;
+            this.identityContext = identityContext;
+            this.northwindContext = northwindContext;
         }
 
         [HttpPost]
@@ -61,7 +64,7 @@ namespace NorthwindWebApi.Controllers
                 var token = new JwtSecurityToken(
                     issuer: _configuration["JWT:ValidIssuer"],
                     audience: _configuration["JWT:ValidAudience"],
-                    expires: DateTime.Now.AddMinutes(15),
+                    expires: DateTime.UtcNow.AddMinutes(15),
                     claims: authClaims,
                     signingCredentials: new SigningCredentials(authSigningKey, SecurityAlgorithms.HmacSha256)
                     );
@@ -83,7 +86,7 @@ namespace NorthwindWebApi.Controllers
         {
             ApplicationUser user;
 
-            if (roleManager.Roles.Count() == 0)
+            if (roleManager.Roles.Count() == 0)                 //      Create Roles
             {
                 await roleManager.CreateAsync(new IdentityRole(Roles.Employee));
                 await roleManager.CreateAsync(new IdentityRole(Roles.VD));
@@ -91,11 +94,15 @@ namespace NorthwindWebApi.Controllers
                 await roleManager.CreateAsync(new IdentityRole(Roles.CountryManager));
             }
 
-            var userExists = await userManager.FindByNameAsync(model.Email);
+            var userExists = await userManager.FindByEmailAsync(model.Email);               //      Check if email already registered
             if (userExists != null)
                 return StatusCode(StatusCodes.Status500InternalServerError, new Response { Status = "Error", Message = "User already exists!" });
 
-            var query = context.Employees.Where(e => e.FirstName == model.FirstName && e.LastName == model.LastName).FirstOrDefault();
+            userExists = await userManager.FindByNameAsync(model.Username);               //      Check if username already registered
+            if (userExists != null)
+                return StatusCode(StatusCodes.Status500InternalServerError, new Response { Status = "Error", Message = "User already exists!" });
+
+            var query = northwindContext.Employees.Where(e => e.FirstName == model.FirstName && e.LastName == model.LastName).FirstOrDefault();         //      Check if user already exists in Northwind
             if (query != null)
             {
                 user = new ApplicationUser()
@@ -108,17 +115,17 @@ namespace NorthwindWebApi.Controllers
                 };
             }
 
-            using (SqlConnection connection = new SqlConnection(context.Database.GetDbConnection().ConnectionString))
+            using (SqlConnection connection = new SqlConnection(northwindContext.Database.GetDbConnection().ConnectionString))          //      Add user to Northwind
             {
-              connection.Open();
-                SqlCommand sql = new SqlCommand("INSERT INTO Employees (LastName, FirstName) VALUES (@LastName, @FirstName)", connection);
-                sql.Parameters.AddWithValue("@LastName", model.LastName);
-                sql.Parameters.AddWithValue("@FirstName", model.FirstName);
-                sql.ExecuteNonQuery();
+                connection.Open();
+                SqlCommand command = new SqlCommand("INSERT INTO Employees (LastName, FirstName) VALUES (@LastName, @FirstName)", connection);
+                command.Parameters.AddWithValue("@LastName", model.LastName);
+                command.Parameters.AddWithValue("@FirstName", model.FirstName);
+                command.ExecuteNonQuery();
             }
 
 
-            query = context.Employees.Where(e => e.FirstName == model.FirstName && e.LastName == model.LastName).FirstOrDefault();
+            query = northwindContext.Employees.Where(e => e.FirstName == model.FirstName && e.LastName == model.LastName).FirstOrDefault();
             user = new ApplicationUser()
             {
                 UserName = model.Username,
@@ -131,6 +138,11 @@ namespace NorthwindWebApi.Controllers
             if (!result.Succeeded)
                 return StatusCode(StatusCodes.Status500InternalServerError, new Response { Status = "Error", Message = "User creation failed! Please check user details and try again." });
 
+            if (identityContext.Users.Count() == 1)                         //  First user created gets Admin-role
+                await userManager.AddToRoleAsync(user, Roles.Admin);
+
+            else
+                await userManager.AddToRoleAsync(user, Roles.Employee);     //  All other users gets Employee-role, Further roles can be added by admin
 
             return Ok(new Response { Status = "Success", Message = "User created successfully!" });
         }
