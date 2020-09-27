@@ -6,11 +6,11 @@ using System.Threading.Tasks;
 
 namespace NorthwindWebApi.Entities 
 {
-    static class Roles
+    public class Roles
     {
-        public static readonly string Employee = "Employee";
-        public static readonly string VD = "Vd";
-        public static readonly string CountryManager = "CountryManager";
-        public static readonly string Admin = "Admin";
+        public const string Employee = "Employee";
+        public const string VD = "Vd";
+        public const string CountryManager = "CountryManager";
+        public const string Admin = "Admin";
     }
 }

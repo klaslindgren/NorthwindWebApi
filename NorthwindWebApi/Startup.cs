@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using AutoMapper;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -18,6 +19,8 @@ using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using NorthwindWebApi.Data;
 using NorthwindWebApi.Entities;
+using NorthwindWebApi.Helpers;
+using NorthwindWebApi.Services;
 
 namespace NorthwindWebApi
 {
@@ -35,10 +38,14 @@ namespace NorthwindWebApi
         {
             services.AddDbContext<IdentityContext>(options => options.UseSqlServer(Configuration.GetConnectionString("IdentityContext")));
             services.AddDbContext<NorthwindContext>(options => options.UseSqlServer(Configuration.GetConnectionString("NorthwindContext")));
+            services.AddCors();
 
             services.AddControllers();
 
-            services.AddIdentity<ApplicationUser, IdentityRole>()
+            services.AddAutoMapper(typeof(Startup));
+            services.AddScoped<IAccountService, AccountService>();
+
+            services.AddIdentity<Account, IdentityRole>()
                     .AddEntityFrameworkStores<IdentityContext>()
                     .AddDefaultTokenProviders()
                     .AddRoles<IdentityRole>();

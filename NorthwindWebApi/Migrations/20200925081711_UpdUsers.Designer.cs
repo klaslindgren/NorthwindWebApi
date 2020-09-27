@@ -3,15 +3,17 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NorthwindWebApi.Data;
 
 namespace NorthwindWebApi.Migrations
 {
     [DbContext(typeof(IdentityContext))]
-    partial class IdentityContextModelSnapshot : ModelSnapshot
+    [Migration("20200925081711_UpdUsers")]
+    partial class UpdUsers
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -150,13 +152,10 @@ namespace NorthwindWebApi.Migrations
                     b.ToTable("AspNetUserTokens");
                 });
 
-            modelBuilder.Entity("NorthwindWebApi.Entities.Account", b =>
+            modelBuilder.Entity("NorthwindWebApi.Entities.ApplicationUser", b =>
                 {
                     b.Property<string>("Id")
                         .HasColumnType("nvarchar(450)");
-
-                    b.Property<bool>("AcceptTerms")
-                        .HasColumnType("bit");
 
                     b.Property<int>("AccessFailedCount")
                         .HasColumnType("int");
@@ -178,13 +177,7 @@ namespace NorthwindWebApi.Migrations
                     b.Property<int>("EmployeeID")
                         .HasColumnType("int");
 
-                    b.Property<string>("FirstName")
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<string>("JwtToken")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("LastName")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<bool>("LockoutEnabled")
@@ -218,9 +211,6 @@ namespace NorthwindWebApi.Migrations
 
                     b.Property<DateTime?>("ResetTokenExpires")
                         .HasColumnType("datetime2");
-
-                    b.Property<string>("Role")
-                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("SecurityStamp")
                         .HasColumnType("nvarchar(max)");
@@ -262,7 +252,7 @@ namespace NorthwindWebApi.Migrations
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<string>", b =>
                 {
-                    b.HasOne("NorthwindWebApi.Entities.Account", null)
+                    b.HasOne("NorthwindWebApi.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -271,7 +261,7 @@ namespace NorthwindWebApi.Migrations
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserLogin<string>", b =>
                 {
-                    b.HasOne("NorthwindWebApi.Entities.Account", null)
+                    b.HasOne("NorthwindWebApi.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -286,7 +276,7 @@ namespace NorthwindWebApi.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("NorthwindWebApi.Entities.Account", null)
+                    b.HasOne("NorthwindWebApi.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -295,24 +285,25 @@ namespace NorthwindWebApi.Migrations
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<string>", b =>
                 {
-                    b.HasOne("NorthwindWebApi.Entities.Account", null)
+                    b.HasOne("NorthwindWebApi.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("NorthwindWebApi.Entities.Account", b =>
+            modelBuilder.Entity("NorthwindWebApi.Entities.ApplicationUser", b =>
                 {
                     b.OwnsMany("NorthwindWebApi.Entities.RefreshToken", "RefreshTokens", b1 =>
                         {
-                            b1.Property<string>("AccountId")
-                                .HasColumnType("nvarchar(450)");
-
                             b1.Property<int>("Id")
                                 .ValueGeneratedOnAdd()
                                 .HasColumnType("int")
                                 .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
+
+                            b1.Property<string>("AccountId")
+                                .IsRequired()
+                                .HasColumnType("nvarchar(450)");
 
                             b1.Property<DateTime>("Created")
                                 .HasColumnType("datetime2");
@@ -332,7 +323,9 @@ namespace NorthwindWebApi.Migrations
                             b1.Property<string>("Token")
                                 .HasColumnType("nvarchar(max)");
 
-                            b1.HasKey("AccountId", "Id");
+                            b1.HasKey("Id");
+
+                            b1.HasIndex("AccountId");
 
                             b1.ToTable("RefreshToken");
 

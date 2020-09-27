@@ -6,10 +6,14 @@ using System.Threading.Tasks;
 
 namespace NorthwindWebApi.Entities
 {
-    public class ApplicationUser : IdentityUser
+    public class Account : IdentityUser
     {
         public int EmployeeID { get; set; }
-        public string VerificationToken { get; set; }
+        public string FirstName { get; set; }
+        public string LastName { get; set; }
+        public bool AcceptTerms { get; set; }
+        public string Role{ get; set; }
+        public string JwtToken { get; set; }
         public DateTime? Verified { get; set; }
         public bool IsVerified => Verified.HasValue || PasswordReset.HasValue;
         public string ResetToken { get; set; }

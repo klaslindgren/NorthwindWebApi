@@ -25,13 +25,13 @@ namespace NorthwindWebApi.Controllers
     [ApiController]
     public class AuthenticateController : ControllerBase
     {
-        private readonly UserManager<ApplicationUser> userManager;
+        private readonly UserManager<Account> userManager;
         private readonly RoleManager<IdentityRole> roleManager;
         private readonly IConfiguration _configuration;
         private readonly NorthwindContext northwindContext;
         private readonly IdentityContext identityContext;
 
-        public AuthenticateController(UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager, IConfiguration configuration, NorthwindContext northwindContext, IdentityContext identityContext)
+        public AuthenticateController(UserManager<Account> userManager, RoleManager<IdentityRole> roleManager, IConfiguration configuration, NorthwindContext northwindContext, IdentityContext identityContext)
         {
             this.userManager = userManager;
             this.roleManager = roleManager;
@@ -76,7 +76,7 @@ namespace NorthwindWebApi.Controllers
 
                 var refreshToken = GenerateRefreshToken();
                 user.RefreshTokens.Insert(0, refreshToken);
-                user.VerificationToken = new JwtSecurityTokenHandler().WriteToken(token);
+                user.JwtToken = new JwtSecurityTokenHandler().WriteToken(token);
                 await userManager.UpdateAsync(user);
 
                 return Ok(new
@@ -94,7 +94,7 @@ namespace NorthwindWebApi.Controllers
         [Route("register")]
         public async Task<IActionResult> Register([FromBody] RegisterModel model)
         {
-            ApplicationUser user;
+            Account user;
 
             if (roleManager.Roles.Count() == 0)                 //      Create Roles
             {
@@ -115,7 +115,7 @@ namespace NorthwindWebApi.Controllers
             var query = northwindContext.Employees.Where(e => e.FirstName == model.FirstName && e.LastName == model.LastName).FirstOrDefault();         //      Check if user already exists in Northwind
             if (query != null)
             {
-                user = new ApplicationUser()
+                user = new Account()
                 {
                     UserName = model.Username,
                     Email = model.Email,
@@ -137,7 +137,7 @@ namespace NorthwindWebApi.Controllers
 
 
             query = northwindContext.Employees.Where(e => e.FirstName == model.FirstName && e.LastName == model.LastName).FirstOrDefault();
-            user = new ApplicationUser()
+            user = new Account()
             {
                 UserName = model.Username,
                 Email = model.Email,
