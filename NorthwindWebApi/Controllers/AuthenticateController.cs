@@ -121,7 +121,8 @@ namespace NorthwindWebApi.Controllers
                     Email = model.Email,
                     SecurityStamp = Guid.NewGuid().ToString(),
                     EmployeeID = query.EmployeeId,
-                    PasswordHash = model.Password
+                    PasswordHash = model.Password,
+                    Created = DateTime.UtcNow,
                 };
             }
 
