@@ -7,10 +7,14 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NorthwindWebApi.Data;
 using NorthwindWebApi.Models;
+using NorthwindWebApi.Entities;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Authentication.OAuth.Claims;
 
 namespace NorthwindWebApi.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("[controller]")]
     [ApiController]
     public class OrdersController : ControllerBase
     {
@@ -22,25 +26,43 @@ namespace NorthwindWebApi.Controllers
         }
 
         // GET: api/Orders
+        [Authorize]
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Orders>>> GetOrders()
         {
             return await _context.Orders.ToListAsync();
         }
 
-        // GET: api/Orders/5
+        //[Authorize(Roles = Roles.VD)]
+        //// GET: api/Orders/5
+        //[HttpGet("{id}")]
+        //public async Task<ActionResult<IEnumerable<Orders>>> GetOrders(int id)
+        //{
+        //    var orders = await _context.Orders.Where(o => o.EmployeeId == id).ToListAsync();
+
+        //    if (orders == null)
+        //    {
+        //        return NotFound();
+        //    }
+
+        //    return orders;
+        //}
+
+        [Authorize]
         [HttpGet("{id}")]
-        public async Task<ActionResult<Orders>> GetOrders(int id)
+        public async Task<ActionResult<IEnumerable<Orders>>> GetMyOrders(int id)
         {
-            var orders = await _context.Orders.FindAsync(id);
+            var orders = await _context.Orders.Where(o => o.EmployeeId == id).ToListAsync();
 
             if (orders == null)
             {
                 return NotFound();
             }
 
-            return orders;
+
+            return Ok(orders);
         }
+
 
         // PUT: api/Orders/5
         // To protect from overposting attacks, enable the specific properties you want to bind to, for
