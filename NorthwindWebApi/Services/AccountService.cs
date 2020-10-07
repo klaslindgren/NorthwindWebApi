@@ -211,6 +211,7 @@ namespace NorthwindWebApi.Services
         private Account getAccount(int id)
         {
             var account = identityContext.Accounts.Find(id);
+            
             if (account == null) throw new KeyNotFoundException("Account not found");
             return account;
         }

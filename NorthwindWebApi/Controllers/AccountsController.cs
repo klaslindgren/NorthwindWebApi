@@ -84,11 +84,12 @@ namespace NorthwindWebApi.Controllers
         [HttpGet("{id:int}")]
         public ActionResult<AccountResponse> GetById(int id)
         {
+
+            var account = _accountService.GetById(id);
             // users can get their own account and admins can get any account
             if (id != Account.EmployeeID && Account.Role != Roles.Admin)
                 return Unauthorized(new { message = "Unauthorized" });
 
-            var account = _accountService.GetById(id);
             return Ok(account);
         }
 
