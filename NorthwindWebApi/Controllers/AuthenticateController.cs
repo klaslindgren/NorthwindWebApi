@@ -41,8 +41,7 @@ namespace NorthwindWebApi.Controllers
             this.northwindContext = northwindContext;
         }
 
-        [HttpPost]
-        [Route("login")]
+        [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginModel model)
         {
             var user = await userManager.FindByNameAsync(model.Username);
@@ -92,8 +91,7 @@ namespace NorthwindWebApi.Controllers
             return Unauthorized();
         }
 
-        [HttpPost]
-        [Route("register")]
+        [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterModel model)
         {
             Account user;
@@ -146,7 +144,8 @@ namespace NorthwindWebApi.Controllers
                 Email = model.Email,
                 SecurityStamp = Guid.NewGuid().ToString(),
                 PasswordHash = model.Password,
-                EmployeeID = query.EmployeeId
+                EmployeeID = query.EmployeeId,
+                Created = DateTime.UtcNow,
             };
             var result = await userManager.CreateAsync(user, model.Password);
             if (!result.Succeeded)
