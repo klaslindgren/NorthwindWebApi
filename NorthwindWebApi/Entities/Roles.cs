@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace NorthwindWebApi.Entities 
 {
-    public class Roles
+    public static class Roles
     {
         public const string Employee = "Employee";
         public const string VD = "Vd";

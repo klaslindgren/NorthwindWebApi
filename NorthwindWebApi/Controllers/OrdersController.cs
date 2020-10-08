@@ -11,6 +11,8 @@ using NorthwindWebApi.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Authentication.OAuth.Claims;
+using AutoMapper.Configuration;
+using System.Security.Claims;
 
 namespace NorthwindWebApi.Controllers
 {
@@ -18,11 +20,19 @@ namespace NorthwindWebApi.Controllers
     [ApiController]
     public class OrdersController : ControllerBase
     {
-        private readonly NorthwindContext _context;
+        private readonly UserManager<User> userManager;
+        private readonly RoleManager<IdentityRole> roleManager;
+        private readonly IConfiguration _configuration;
+        private readonly NorthwindContext northwindContext;
+        private readonly IdentityContext identityContext;
 
-        public OrdersController(NorthwindContext context)
+        public OrdersController(UserManager<User> userManager, RoleManager<IdentityRole> roleManager, IConfiguration configuration, NorthwindContext northwindContext, IdentityContext identityContext)
         {
-            _context = context;
+            this.userManager = userManager;
+            this.roleManager = roleManager;
+            _configuration = configuration;
+            this.identityContext = identityContext;
+            this.northwindContext = northwindContext;
         }
 
         // GET: api/Orders
@@ -30,7 +40,7 @@ namespace NorthwindWebApi.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Orders>>> GetOrders()
         {
-            return await _context.Orders.ToListAsync();
+            return await northwindContext.Orders.ToListAsync();
         }
 
         //[Authorize(Roles = Roles.VD)]
@@ -52,13 +62,12 @@ namespace NorthwindWebApi.Controllers
         [HttpGet("{id}")]
         public async Task<ActionResult<IEnumerable<Orders>>> GetMyOrders(int id)
         {
-            var orders = await _context.Orders.Where(o => o.EmployeeId == id).ToListAsync();
+            var orders = await northwindContext.Orders.Where(o => o.EmployeeId == id).ToListAsync();
 
             if (orders == null)
             {
                 return NotFound();
             }
-
 
             return Ok(orders);
         }
@@ -75,11 +84,11 @@ namespace NorthwindWebApi.Controllers
                 return BadRequest();
             }
 
-            _context.Entry(orders).State = EntityState.Modified;
+            northwindContext.Entry(orders).State = EntityState.Modified;
 
             try
             {
-                await _context.SaveChangesAsync();
+                await northwindContext.SaveChangesAsync();
             }
             catch (DbUpdateConcurrencyException)
             {
@@ -102,8 +111,8 @@ namespace NorthwindWebApi.Controllers
         [HttpPost]
         public async Task<ActionResult<Orders>> PostOrders(Orders orders)
         {
-            _context.Orders.Add(orders);
-            await _context.SaveChangesAsync();
+            northwindContext.Orders.Add(orders);
+            await northwindContext.SaveChangesAsync();
 
             return CreatedAtAction("GetOrders", new { id = orders.OrderId }, orders);
         }
@@ -112,21 +121,21 @@ namespace NorthwindWebApi.Controllers
         [HttpDelete("{id}")]
         public async Task<ActionResult<Orders>> DeleteOrders(int id)
         {
-            var orders = await _context.Orders.FindAsync(id);
+            var orders = await northwindContext.Orders.FindAsync(id);
             if (orders == null)
             {
                 return NotFound();
             }
 
-            _context.Orders.Remove(orders);
-            await _context.SaveChangesAsync();
+            northwindContext.Orders.Remove(orders);
+            await northwindContext.SaveChangesAsync();
 
             return orders;
         }
 
         private bool OrdersExists(int id)
         {
-            return _context.Orders.Any(e => e.OrderId == id);
+            return northwindContext.Orders.Any(e => e.OrderId == id);
         }
     }
 }

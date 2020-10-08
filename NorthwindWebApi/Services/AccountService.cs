@@ -9,233 +9,220 @@ using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using NorthwindWebApi.Entities;
-using NorthwindWebApi.Helpers;
 using NorthwindWebApi.Models.Accounts;
 using NorthwindWebApi.Data;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
 using System.Threading.Tasks;
+using NorthwindWebApi.Models.Account;
+using NorthwindWebApi.Controllers;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Http;
+using System.Net;
+using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
 
 namespace NorthwindWebApi.Services
 {
     public interface IAccountService
     {
-        Task<AuthenticateResponse> AuthenticateAsync(AuthenticateRequest model);
-        AuthenticateResponse RefreshToken(string token);
-        void RevokeToken(string token);
-        void Register(RegisterRequest model, string origin);
-        void ValidateResetToken(ValidateResetTokenRequest model);
-        IEnumerable<AccountResponse> GetAll();
-        AccountResponse GetById(int id);
-        AccountResponse Create(CreateRequest model);
-        AccountResponse Update(int id, UpdateRequest model);
-        void Delete(int id);
+        Task<Response> AuthenticateAsync(LoginModel model);
+        Task<Response> Register(RegisterRequest model, string origin);
+        IEnumerable<User> GetAll();
+        User GetById(int id);
     }
 
     public class AccountService : IAccountService
     {
         private readonly NorthwindContext northwindContext;
         private readonly IdentityContext identityContext;
-        private readonly IMapper _mapper;
         private readonly IConfiguration _configuration;
-        private readonly UserManager<Account> _userManager;
+        private readonly UserManager<User> _userManager;
+        private readonly RoleManager<IdentityRole> _roleManager;
 
-        public AccountService(NorthwindContext nContext, IdentityContext iContext, IMapper mapper, IConfiguration configuration, UserManager<Account> userManager)
+        public AccountService(NorthwindContext nContext, IdentityContext iContext, IConfiguration configuration, UserManager<User> userManager, RoleManager<IdentityRole> roleManager)
         {
             northwindContext = nContext;
             identityContext = iContext;
-            _mapper = mapper;
             _configuration = configuration;
             _userManager = userManager;
+            _roleManager = roleManager;
         }
 
-        public async Task<AuthenticateResponse> AuthenticateAsync(AuthenticateRequest model)
+        public async Task<Response> AuthenticateAsync(LoginModel model)
         {
-            var account = identityContext.Accounts.SingleOrDefault(x => x.UserName == model.UserName);
-            bool validPass = await _userManager.CheckPasswordAsync(account, model.Password);
+            var user = _userManager.Users.Where(u => u.UserName == model.UserName).FirstOrDefault();
 
-            if (account == null || !validPass)
-                throw new AppException("Username or password is incorrect");
+            bool validPass = await _userManager.CheckPasswordAsync(user, model.Password);
 
-            var refreshToken = account.RefreshTokens.LastOrDefault();
-            if (!refreshToken.IsActive || refreshToken == null)
+            if (model == null || !validPass)
+                throw new Exception("Username or password is incorrect");
+
+            //Check if refreshtoken is active
+            var refreshToken = user.RefreshTokens.LastOrDefault();
+            if (refreshToken.IsExpired || refreshToken == null)
                 refreshToken = generateRefreshToken();
 
             // authentication successful so generate jwt token
-            var jwtToken = generateJwtToken(account);
+            var jwtToken = await generateJwtToken(user);
 
 
-            // save refresh token
-            account.RefreshTokens.Add(refreshToken);
-            identityContext.Update(account);
-            identityContext.SaveChanges();
-
-            var response = _mapper.Map<AuthenticateResponse>(account);
-            response.JwtToken = jwtToken;
-            response.RefreshToken = refreshToken.Token;
-            return response;
+            // save refresh token and jwtToken
+            user.RefreshTokens.Add(refreshToken);
+            user.Token = jwtToken;
+            await _userManager.UpdateAsync(user);
+            return new Response { Token = jwtToken, RefreshToken = refreshToken };
         }
 
-        public AuthenticateResponse RefreshToken(string token)
+        public async Task<Response> Register(RegisterRequest model, string origin)
         {
-            var (refreshToken, account) = getRefreshToken(token);
+            User user;
 
-            // replace old refresh token with a new one and save
-            var newRefreshToken = generateRefreshToken();
-            refreshToken.Revoked = DateTime.UtcNow;
-            refreshToken.ReplacedByToken = newRefreshToken.Token;
-            account.RefreshTokens.Add(newRefreshToken);
-            identityContext.Update(account);
-            identityContext.SaveChanges();
-
-            // generate new jwt
-            var jwtToken = generateJwtToken(account);
-
-            var response = _mapper.Map<AuthenticateResponse>(account);
-            response.JwtToken = jwtToken;
-            response.RefreshToken = newRefreshToken.Token;
-            return response;
-        }
-
-        public void RevokeToken(string token)
-        {
-            var (refreshToken, account) = getRefreshToken(token);
-
-            // revoke token and save
-            refreshToken.Revoked = DateTime.UtcNow;
-            identityContext.Update(account);
-            identityContext.SaveChanges();
-        }
-
-        public void Register(RegisterRequest model, string origin)
-        {
-            // validate
-            if (identityContext.Accounts.Any(x => x.Email == model.Email))
+            if (_roleManager.Roles.Count() == 0)                 //      Create Roles
             {
-                // send already registered error in email to prevent account enumeration
-                throw new Exception("Account already exists");
-                //return;
+                await _roleManager.CreateAsync(new IdentityRole(Roles.Employee));
+                await _roleManager.CreateAsync(new IdentityRole(Roles.VD));
+                await _roleManager.CreateAsync(new IdentityRole(Roles.Admin));
+                await _roleManager.CreateAsync(new IdentityRole(Roles.CountryManager));
             }
 
-            // map model to new account object
-            var account = _mapper.Map<Account>(model);
+            var userExists = await _userManager.FindByEmailAsync(model.Email);               //      Check if email already registered
+            if (userExists != null)
+                return  new Response { Status = "Error", Message = "User already exists!" };
 
-            // first registered account is an admin
-            var isFirstAccount = identityContext.Accounts.Count() == 0;
-            account.Role = isFirstAccount ? Roles.Admin : Roles.Employee;
-            account.Created = DateTime.UtcNow;
-            account.JwtToken = randomTokenString();
+            userExists = await _userManager.FindByNameAsync(model.UserName);               //      Check if username already registered
+            if (userExists != null)
+                return new Response { Status = "Error", Message = "User already exists!" };
 
-            // hash password
-            account.PasswordHash = model.Password;
+            var query = northwindContext.Employees.Where(e => e.FirstName == model.FirstName && e.LastName == model.LastName).FirstOrDefault();         //      Check if user already exists in Northwind
+            if (query != null)
+            {
+                user = new User()
+                {
+                    UserName = model.UserName,
+                    Email = model.Email,
+                    SecurityStamp = Guid.NewGuid().ToString(),
+                    EmployeeID = query.EmployeeId,
+                    PasswordHash = model.Password
+                };
+            }
 
-            // save account
-            identityContext.Accounts.Add(account);
-            identityContext.SaveChanges();
+            using (SqlConnection connection = new SqlConnection(northwindContext.Database.GetDbConnection().ConnectionString))          //      Add user to Northwind
+            {
+                connection.Open();
+                SqlCommand command = new SqlCommand("INSERT INTO Employees (LastName, FirstName, Country) VALUES (@LastName, @FirstName, @Country)", connection);
+                command.Parameters.AddWithValue("@LastName", model.LastName);
+                command.Parameters.AddWithValue("@FirstName", model.FirstName);
+                command.Parameters.AddWithValue("@Country", model.Country);
+                command.ExecuteNonQuery();
+            }
+
+
+            query = northwindContext.Employees.Where(e => e.FirstName == model.FirstName && e.LastName == model.LastName).FirstOrDefault();
+            user = new User()
+            {
+                UserName = model.UserName,
+                Email = model.Email,
+                SecurityStamp = Guid.NewGuid().ToString(),
+                PasswordHash = model.Password,
+                EmployeeID = query.EmployeeId
+            };
+            var result = await _userManager.CreateAsync(user, model.Password);
+            if (!result.Succeeded)
+                return new Response { Status = "Error", Message = "User creation failed! Please check user details and try again." };
+
+            if (identityContext.Users.Count() == 1)                         //  First user created gets Admin-role
+                await _userManager.AddToRoleAsync(user, Roles.Admin);
+
+            await _userManager.AddToRoleAsync(user, Roles.Employee);     //  All other users gets Employee-role, Further roles can be added by admin
+
+            return new Response { Status = "Success", Message = "User created successfully!" };
+
+            //// validate
+            //if (identityContext.Accounts.Any(x => x.Email == model.Email))
+            //{
+            //    // send already registered error in email to prevent account enumeration
+            //    throw new Exception("Account already exists");
+            //    //return;
+            //}
+
+            //// map model to new account object
+            //var account = _mapper.Map<User>(model);
+
+            //// first registered account is an admin
+            //var isFirstAccount = identityContext.Accounts.Count() == 0;
+            //account.Role = isFirstAccount ? Roles.Admin : Roles.Employee;
+            //account.Created = DateTime.UtcNow;
+            //account.JwtToken = randomTokenString();
+
+            //// hash password
+            //account.PasswordHash = model.Password;
+
+            //// save account
+            //identityContext.Accounts.Add(account);
+            //identityContext.SaveChanges();
 
         }
 
-        public void ValidateResetToken(ValidateResetTokenRequest model)
+        public IEnumerable<User> GetAll()
         {
-            var account = identityContext.Accounts.SingleOrDefault(x =>
-                x.ResetToken == model.Token &&
-                x.ResetTokenExpires > DateTime.UtcNow);
-
-            if (account == null)
-                throw new AppException("Invalid token");
+            var accounts = _userManager.Users.ToList();
+            return accounts;
         }
 
-        public IEnumerable<AccountResponse> GetAll()
-        {
-            var accounts = identityContext.Accounts.ToList();
-            return _mapper.Map<IList<AccountResponse>>(accounts);
-        }
-
-        public AccountResponse GetById(int id)
+        public User GetById(int id)
         {
             var account = getAccount(id);
-            return _mapper.Map<AccountResponse>(account);
-        }
-
-        public AccountResponse Create(CreateRequest model)
-        {
-            // validate
-            if (identityContext.Accounts.Any(x => x.Email == model.Email))
-                throw new AppException($"Email '{model.Email}' is already registered");
-
-            // map model to new account object
-            var account = _mapper.Map<Account>(model);
-            account.Created = DateTime.UtcNow;
-            account.Verified = DateTime.UtcNow;
-
-            // hash password
-            account.PasswordHash = model.Password;
-
-            // save account
-            identityContext.Accounts.Add(account);
-            identityContext.SaveChanges();
-
-            return _mapper.Map<AccountResponse>(account);
-        }
-
-        public AccountResponse Update(int id, UpdateRequest model)
-        {
-            var account = getAccount(id);
-
-            // validate
-            if (account.Email != model.Email && identityContext.Accounts.Any(x => x.Email == model.Email))
-                throw new AppException($"Email '{model.Email}' is already taken");
-
-            // hash password if it was entered
-            if (!string.IsNullOrEmpty(model.Password))
-                account.PasswordHash = model.Password;
-
-            // copy model to account and save
-            _mapper.Map(model, account);
-            account.Updated = DateTime.UtcNow;
-            identityContext.Accounts.Update(account);
-            identityContext.SaveChanges();
-
-            return _mapper.Map<AccountResponse>(account);
-        }
-
-        public void Delete(int id)
-        {
-            var account = getAccount(id);
-            identityContext.Accounts.Remove(account);
-            identityContext.SaveChanges();
+            return account;
         }
 
         // helper methods
 
-        private Account getAccount(int id)
+        private User getAccount(int id)
         {
-            var account = identityContext.Accounts.Find(id);
+            var account = identityContext.User.Find(id);
             if (account == null) throw new KeyNotFoundException("Account not found");
             return account;
         }
 
-        private (RefreshToken, Account) getRefreshToken(string token)
+        private (RefreshToken, User) getRefreshToken(string token)
         {
-            var account = identityContext.Accounts.SingleOrDefault(u => u.RefreshTokens.Any(t => t.Token == token));
-            if (account == null) throw new AppException("Invalid token");
+            var account = identityContext.User.SingleOrDefault(u => u.RefreshTokens.Any(t => t.Token == token));
+            if (account == null) throw new Exception("Invalid token");
             var refreshToken = account.RefreshTokens.Single(x => x.Token == token);
-            if (!refreshToken.IsActive) throw new AppException("Invalid token");
+            if (refreshToken.IsExpired) throw new Exception("Invalid token");
             return (refreshToken, account);
         }
 
-        private string generateJwtToken(Account account)
+        private async Task<string> generateJwtToken(User user)
         {
-            var tokenHandler = new JwtSecurityTokenHandler();
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["JWT:Secret"]));
-            var tokenDescriptor = new SecurityTokenDescriptor
+            var userRoles = await _userManager.GetRolesAsync(user);
+
+            var country = northwindContext.Employees.Find(user.EmployeeID).Country.ToString();
+
+            var authClaims = new List<Claim>
+                {
+                    new Claim(ClaimTypes.Name, user.UserName),
+                    new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+                    new Claim(ClaimTypes.Country, country)
+                };
+
+            foreach (var userRole in userRoles)
             {
-                Subject = new ClaimsIdentity(new[] { new Claim("id", account.Id.ToString()) }),
-                Expires = DateTime.UtcNow.AddMinutes(30),
-                SigningCredentials = new SigningCredentials(key , SecurityAlgorithms.HmacSha256Signature)
-            };
-            var token = tokenHandler.CreateToken(tokenDescriptor);
-            return tokenHandler.WriteToken(token);
+                authClaims.Add(new Claim(ClaimTypes.Role, userRole));
+            }
+
+            var authSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["JWT:Secret"]));
+
+            var token = new JwtSecurityToken(
+                issuer: _configuration["JWT:ValidIssuer"],
+                audience: _configuration["JWT:ValidAudience"],
+                expires: DateTime.UtcNow.AddMinutes(30),
+                claims: authClaims,
+                signingCredentials: new SigningCredentials(authSigningKey, SecurityAlgorithms.HmacSha256)
+                );
+
+            return new JwtSecurityTokenHandler().WriteToken(token);
         }
 
         private RefreshToken generateRefreshToken()
@@ -243,7 +230,7 @@ namespace NorthwindWebApi.Services
             return new RefreshToken
             {
                 Token = randomTokenString(),
-                Expires = DateTime.UtcNow.AddDays(1),
+                Expires = DateTime.UtcNow.AddDays(5),
                 Created = DateTime.UtcNow,
             };
         }

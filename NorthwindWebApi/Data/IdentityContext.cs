@@ -9,9 +9,9 @@ using System.Threading.Tasks;
 
 namespace NorthwindWebApi.Data
 {
-    public class IdentityContext : IdentityDbContext<Account>
+    public class IdentityContext : IdentityDbContext<User>
     {
-        public DbSet<Account> Accounts { get; set; }
+        public DbSet<User> User { get; set; }
         public IdentityContext(DbContextOptions<IdentityContext> options) : base(options)
         { 
         }

@@ -19,7 +19,6 @@ using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using NorthwindWebApi.Data;
 using NorthwindWebApi.Entities;
-using NorthwindWebApi.Helpers;
 using NorthwindWebApi.Services;
 
 namespace NorthwindWebApi
@@ -42,10 +41,9 @@ namespace NorthwindWebApi
 
             services.AddControllers();
 
-            services.AddAutoMapper(typeof(Startup));
             services.AddScoped<IAccountService, AccountService>();
 
-            services.AddIdentity<Account, IdentityRole>()
+            services.AddIdentity<User, IdentityRole>()
                     .AddEntityFrameworkStores<IdentityContext>()
                     .AddDefaultTokenProviders()
                     .AddRoles<IdentityRole>();
