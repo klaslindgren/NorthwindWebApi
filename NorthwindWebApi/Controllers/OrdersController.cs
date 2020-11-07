@@ -16,7 +16,7 @@ using Microsoft.Extensions.Configuration;
 
 namespace NorthwindWebApi.Controllers
 {
-    [Route("[controller]")]
+    [Route("api/[controller]")]
     [ApiController]
     public class OrdersController : ControllerBase
     {
@@ -35,32 +35,51 @@ namespace NorthwindWebApi.Controllers
             this.northwindContext = northwindContext;
         }
 
-        // GET: api/Orders
-        [Authorize]
-        [HttpGet]
-        public async Task<ActionResult<IEnumerable<Orders>>> GetOrders()
+        //[Authorize]
+        [HttpGet("GetMyOrders/{id}")]
+        public async Task<ActionResult<IEnumerable<Orders>>> GetMyOrders(int id)
         {
-            return await northwindContext.Orders.ToListAsync();
+            var user = identityContext.User.Where(u => u.EmployeeID == id).FirstOrDefault();
+            var roles = await userManager.GetRolesAsync(user);
+            var orders = "potato";
+
+            if (roles.Count() == 1)
+            {
+                return Ok(await northwindContext.Orders.Where(o => o.EmployeeId == id).ToListAsync());
+            }
+
+            if (orders == null)
+            {
+                return NotFound();
+            }
+
+            return Ok(orders);
         }
 
-        //[Authorize(Roles = Roles.VD)]
-        //// GET: api/Orders/5
-        //[HttpGet("{id}")]
-        //public async Task<ActionResult<IEnumerable<Orders>>> GetOrders(int id)
-        //{
-        //    var orders = await _context.Orders.Where(o => o.EmployeeId == id).ToListAsync();
+        // GET: api/Orders/5
+        //[Authorize(Policy = "AboveEmployee")]
 
-        //    if (orders == null)
-        //    {
-        //        return NotFound();
-        //    }
+        [HttpGet("GetCountryOrders/{country}")]
+        public async Task<ActionResult<IEnumerable<Orders>>> GetCountryOrders(string country)
+        {
 
-        //    return orders;
-        //}
+            // if(   CountryManager får bara se sina ordrar   eg.   User.Country == country)
 
-        [Authorize]
-        [HttpGet("{id}")]
-        public async Task<ActionResult<IEnumerable<Orders>>> GetMyOrders(int id)
+            // if(  Admin || Vd Får se alla ordrar för valt country  )
+
+            var orders = await northwindContext.Orders.Where(o => o.ShipCountry == country).ToListAsync();
+
+            if (orders == null)
+            {
+                return NotFound();
+            }
+
+            return Ok(orders);
+        }
+
+        //[Authorize(Policy = "AboveEmployee")]
+        [HttpGet("GetAllOrders/{id}")]
+        public async Task<ActionResult<IEnumerable<Orders>>> GetAllOrders(int id)
         {
             var orders = await northwindContext.Orders.Where(o => o.EmployeeId == id).ToListAsync();
 
@@ -71,7 +90,6 @@ namespace NorthwindWebApi.Controllers
 
             return Ok(orders);
         }
-
 
         // PUT: api/Orders/5
         // To protect from overposting attacks, enable the specific properties you want to bind to, for

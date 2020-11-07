@@ -40,6 +40,12 @@ namespace NorthwindWebApi
                     .AddDefaultTokenProviders()
                     .AddRoles<IdentityRole>();
 
+            services.AddAuthorization(options =>
+            {
+                options.AddPolicy("AboveEmployee", policy =>
+                                  policy.RequireClaim("Role", "Admin", "Vd", "CountryManager"));
+            });
+
             // Password settings
             services.Configure<IdentityOptions>(options =>
             {
@@ -70,7 +76,8 @@ namespace NorthwindWebApi
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(Configuration["JWT:Secret"]))
                 };
             });
-;
+;           
+            // Https Redirect
             services.AddHttpsRedirection(options =>
             {
                 options.RedirectStatusCode = StatusCodes.Status307TemporaryRedirect;
