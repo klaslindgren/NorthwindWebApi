@@ -11,8 +11,8 @@ using NorthwindWebApi.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Authentication.OAuth.Claims;
-using AutoMapper.Configuration;
 using System.Security.Claims;
+using Microsoft.Extensions.Configuration;
 
 namespace NorthwindWebApi.Controllers
 {
