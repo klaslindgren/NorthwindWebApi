@@ -126,6 +126,7 @@ namespace NorthwindWebApi.Services
                 PasswordHash = model.Password,
                 EmployeeID = query.EmployeeId
             };
+
             var result = await _userManager.CreateAsync(user, model.Password);
             if (!result.Succeeded)
                 return new Response { Status = "Error", Message = "User creation failed! Please check user details and try again." };
