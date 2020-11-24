@@ -16,7 +16,7 @@ using System.Threading.Tasks;
 namespace NorthwindWebApi.Controllers
 {
     [ApiController]
-    [Route("[controller]")]
+    [Route("api/[controller]")]
     public class UserController : ControllerBase
     {
         private readonly IAccountService _accountService;
@@ -27,7 +27,7 @@ namespace NorthwindWebApi.Controllers
         }
 
         [HttpPost("login")]
-        public async Task<IActionResult> Login(LoginModel model)
+        public async Task<IActionResult> Login([FromBody]LoginModel model)
         {
             var response = await _accountService.AuthenticateAsync(model);
             return Ok(response);
@@ -36,8 +36,13 @@ namespace NorthwindWebApi.Controllers
         [HttpPost("register")]
         public IActionResult Register(RegisterRequest model)
         {
-            _accountService.Register(model, Request.Headers["origin"]);
-            return Ok(new { message = "Registration successful" });
+            var user = _accountService.Register(model, Request.Headers["origin"]);
+
+            if (user.Result.Status == "Success")
+                return Ok();
+
+            else
+                return BadRequest();
         }
 
         [HttpGet]

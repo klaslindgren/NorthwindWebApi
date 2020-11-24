@@ -12,8 +12,8 @@ namespace NorthwindWebApi.Entities
         public string Country { get; set; }
         public string FirstName { get; set; }
         public string LastName { get; set; }
-        public string Token { get; set; }
-        public List<RefreshToken> RefreshTokens { get; set; }
+        public string AccessToken { get; set; }
+        public virtual List<RefreshToken> RefreshTokens { get; set; }
 
         public bool OwnsToken(string token)
         {

@@ -59,7 +59,9 @@ namespace NorthwindWebApi.Services
 
             //Check if refreshtoken is active
             var refreshToken = user.RefreshTokens.LastOrDefault();
-            if (refreshToken.IsExpired || refreshToken == null)
+            if (refreshToken == null)
+                refreshToken = generateRefreshToken();
+            else if (refreshToken.IsExpired)
                 refreshToken = generateRefreshToken();
 
             // authentication successful so generate jwt token
@@ -68,7 +70,7 @@ namespace NorthwindWebApi.Services
 
             // save refresh token and jwtToken
             user.RefreshTokens.Add(refreshToken);
-            user.Token = jwtToken;
+            user.AccessToken = jwtToken;
             await _userManager.UpdateAsync(user);
             return new Response { Token = jwtToken, RefreshToken = refreshToken };
         }
@@ -93,38 +95,38 @@ namespace NorthwindWebApi.Services
             if (userExists != null)
                 return new Response { Status = "Error", Message = "User already exists!" };
 
-            var query = northwindContext.Employees.Where(e => e.FirstName == model.FirstName && e.LastName == model.LastName).FirstOrDefault();         //      Check if user already exists in Northwind
-            if (query != null)
-            {
-                user = new User()
-                {
-                    UserName = model.UserName,
-                    Email = model.Email,
-                    SecurityStamp = Guid.NewGuid().ToString(),
-                    EmployeeID = query.EmployeeId,
-                    PasswordHash = model.Password
-                };
-            }
+            //var query = northwindContext.Employees.Where(e => e.FirstName == model.FirstName && e.LastName == model.LastName).FirstOrDefault();         //      Check if user already exists in Northwind
+            //if (query != null)
+            //{
+            //    user = new User()
+            //    {
+            //        UserName = model.UserName,
+            //        Email = model.Email,
+            //        SecurityStamp = Guid.NewGuid().ToString(),
+            //        EmployeeID = query.EmployeeId,
+            //        PasswordHash = model.Password
+            //    };
+            //}
 
-            using (SqlConnection connection = new SqlConnection(northwindContext.Database.GetDbConnection().ConnectionString))          //      Add user to Northwind
-            {
-                connection.Open();
-                SqlCommand command = new SqlCommand("INSERT INTO Employees (LastName, FirstName, Country) VALUES (@LastName, @FirstName, @Country)", connection);
-                command.Parameters.AddWithValue("@LastName", model.LastName);
-                command.Parameters.AddWithValue("@FirstName", model.FirstName);
-                command.Parameters.AddWithValue("@Country", model.Country);
-                command.ExecuteNonQuery();
-            }
+            //using (SqlConnection connection = new SqlConnection(northwindContext.Database.GetDbConnection().ConnectionString))          //      Add user to Northwind
+            //{
+            //    connection.Open();
+            //    SqlCommand command = new SqlCommand("INSERT INTO Employees (LastName, FirstName, Country) VALUES (@LastName, @FirstName, @Country)", connection);
+            //    command.Parameters.AddWithValue("@LastName", model.LastName);
+            //    command.Parameters.AddWithValue("@FirstName", model.FirstName);
+            //    command.Parameters.AddWithValue("@Country", model.Country);
+            //    command.ExecuteNonQuery();
+            //}
 
 
-            query = northwindContext.Employees.Where(e => e.FirstName == model.FirstName && e.LastName == model.LastName).FirstOrDefault();
+            //query = northwindContext.Employees.Where(e => e.FirstName == model.FirstName && e.LastName == model.LastName).FirstOrDefault();
             user = new User()
             {
                 UserName = model.UserName,
                 Email = model.Email,
                 SecurityStamp = Guid.NewGuid().ToString(),
                 PasswordHash = model.Password,
-                EmployeeID = query.EmployeeId
+                //EmployeeID = query.EmployeeId
             };
 
             var result = await _userManager.CreateAsync(user, model.Password);
@@ -136,7 +138,7 @@ namespace NorthwindWebApi.Services
 
             await _userManager.AddToRoleAsync(user, Roles.Employee);     //  All other users gets Employee-role, Further roles can be added by admin
 
-            return new Response { Status = "Success", Message = "User created successfully!" };
+            return new Response { Status = "Success", Message = "Potato created successfully!" };
 
             //// validate
             //if (identityContext.Accounts.Any(x => x.Email == model.Email))
@@ -198,7 +200,8 @@ namespace NorthwindWebApi.Services
         {
             var userRoles = await _userManager.GetRolesAsync(user);
 
-            var country = northwindContext.Employees.Find(user.EmployeeID).Country.ToString();
+            //var country = northwindContext.Employees.Find(user.EmployeeID).Country.ToString();
+            var country = "sweden";
 
             var authClaims = new List<Claim>
                 {

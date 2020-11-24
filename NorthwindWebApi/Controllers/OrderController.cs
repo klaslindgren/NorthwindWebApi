@@ -18,7 +18,7 @@ namespace NorthwindWebApi.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class OrdersController : ControllerBase
+    public class OrderController : ControllerBase
     {
         private readonly UserManager<User> userManager;
         private readonly RoleManager<IdentityRole> roleManager;
@@ -26,7 +26,7 @@ namespace NorthwindWebApi.Controllers
         private readonly NorthwindContext northwindContext;
         private readonly IdentityContext identityContext;
 
-        public OrdersController(UserManager<User> userManager, RoleManager<IdentityRole> roleManager, IConfiguration configuration, NorthwindContext northwindContext, IdentityContext identityContext)
+        public OrderController(UserManager<User> userManager, RoleManager<IdentityRole> roleManager, IConfiguration configuration, NorthwindContext northwindContext, IdentityContext identityContext)
         {
             this.userManager = userManager;
             this.roleManager = roleManager;
@@ -35,60 +35,63 @@ namespace NorthwindWebApi.Controllers
             this.northwindContext = northwindContext;
         }
 
-        //[Authorize]
-        [HttpGet("GetMyOrders/{id}")]
-        public async Task<ActionResult<IEnumerable<Orders>>> GetMyOrders(int id)
+        [Authorize]
+        [HttpGet("GetMyOrders/{id?}")]
+        public async Task<ActionResult<IEnumerable<Orders>>> GetMyOrders(string id = null)
         {
-            var user = identityContext.User.Where(u => u.EmployeeID == id).FirstOrDefault();
-            var roles = await userManager.GetRolesAsync(user);
-            var orders = "potato";
+            var user = Request.HttpContext.User;
+            var employee = await userManager.GetUserAsync(user);
 
-            if (roles.Count() == 1)
-            {
-                return Ok(await northwindContext.Orders.Where(o => o.EmployeeId == id).ToListAsync());
-            }
+            if (!(user.IsInRole("Admin") || user.IsInRole("Vd")))
+                return await northwindContext.Orders.Where(e => e.EmployeeId == employee.EmployeeID).ToListAsync();
 
-            if (orders == null)
-            {
-                return NotFound();
-            }
+            if (string.IsNullOrEmpty(id))
+                return await northwindContext.Orders.Where(e => e.EmployeeId == employee.EmployeeID).ToListAsync();
 
-            return Ok(orders);
+            if (user.IsInRole("Admin") || user.IsInRole("Vd"))
+                return await northwindContext.Orders.Where(e => e.EmployeeId == Int32.Parse(id)).ToListAsync();
+
+
+            return NotFound();
+
         }
 
         // GET: api/Orders/5
-        //[Authorize(Policy = "AboveEmployee")]
-
+        [Authorize(Policy = "AboveEmployee")]
         [HttpGet("GetCountryOrders/{country}")]
         public async Task<ActionResult<IEnumerable<Orders>>> GetCountryOrders(string country)
         {
+            var user = Request.HttpContext.User;
+            var employee = await userManager.GetUserAsync(user);
 
-            // if(   CountryManager får bara se sina ordrar   eg.   User.Country == country)
+            if (user.IsInRole("Admin") || user.IsInRole("Vd"))
+                return await northwindContext.Orders.Where(c => c.ShipCountry == country).ToListAsync();
 
-            // if(  Admin || Vd Får se alla ordrar för valt country  )
-
-            var orders = await northwindContext.Orders.Where(o => o.ShipCountry == country).ToListAsync();
-
-            if (orders == null)
+            else if (user.IsInRole("CountryManager"))
             {
-                return NotFound();
+                if (user.FindFirst("Country").ToString() != country)
+                    return Unauthorized();
+                
+                return await northwindContext.Orders.Where(c => c.ShipCountry == employee.Country).ToListAsync();
             }
-
-            return Ok(orders);
+            return NotFound();
         }
 
-        //[Authorize(Policy = "AboveEmployee")]
-        [HttpGet("GetAllOrders/{id}")]
-        public async Task<ActionResult<IEnumerable<Orders>>> GetAllOrders(int id)
+        //[Authorize]
+        [Authorize(Policy = "AboveEmployee")]
+        [HttpGet("GetAllOrders")]
+        public async Task<ActionResult<IEnumerable<Orders>>> GetAllOrders()
         {
-            var orders = await northwindContext.Orders.Where(o => o.EmployeeId == id).ToListAsync();
+            var user = Request.HttpContext.User;
+            var employee = await userManager.GetUserAsync(user);
 
-            if (orders == null)
-            {
-                return NotFound();
-            }
+            if (user.IsInRole("Admin") || user.IsInRole("Vd"))
+                return await northwindContext.Orders.ToListAsync();
 
-            return Ok(orders);
+            else if (user.IsInRole("CountryManager"))
+                return await northwindContext.Orders.Where(c => c.ShipCountry == employee.Country).ToListAsync();
+
+            return NotFound();
         }
 
         // PUT: api/Orders/5

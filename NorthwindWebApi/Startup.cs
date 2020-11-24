@@ -43,7 +43,7 @@ namespace NorthwindWebApi
             services.AddAuthorization(options =>
             {
                 options.AddPolicy("AboveEmployee", policy =>
-                                  policy.RequireClaim("Role", "Admin", "Vd", "CountryManager"));
+                                  policy.RequireRole("Admin", "Vd", "CountryManager"));
             });
 
             // Password settings
