@@ -19,5 +19,6 @@ namespace NorthwindWebApi.Entities
         {
             return this.RefreshTokens?.Find(x => x.Token == token) != null;
         }
+  
     }
 }

@@ -77,7 +77,6 @@ namespace NorthwindWebApi.Controllers
             return NotFound();
         }
 
-        //[Authorize]
         [Authorize(Policy = "AboveEmployee")]
         [HttpGet("GetAllOrders")]
         public async Task<ActionResult<IEnumerable<Orders>>> GetAllOrders()
