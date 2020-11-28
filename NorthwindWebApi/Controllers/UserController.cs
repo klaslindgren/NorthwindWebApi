@@ -17,6 +17,10 @@ using NorthwindWebApi.Data;
 using Microsoft.EntityFrameworkCore;
 using System.IdentityModel.Tokens.Jwt;
 using Microsoft.Data.SqlClient;
+using System.Security.Claims;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
+using System.Security.Cryptography;
 
 namespace NorthwindWebApi.Controllers
 {
@@ -40,33 +44,33 @@ namespace NorthwindWebApi.Controllers
             this.northwindContext = northwindContext;
         }
 
-        //[HttpPost("login")]
-        //public async Task<IActionResult> Login([FromBody]LoginModel model)
-        //{
-        //    var user = userManager.Users.Where(u => u.UserName == model.UserName).FirstOrDefault();
+        [HttpPost("login")]
+        public async Task<IActionResult> Login([FromBody] LoginModel model)
+        {
+            var user = userManager.Users.Where(u => u.UserName == model.UserName).FirstOrDefault();
 
-        //    bool validPass = await userManager.CheckPasswordAsync(user, model.Password);
+            bool validPass = await userManager.CheckPasswordAsync(user, model.Password);
 
-        //    if (model == null || !validPass)
-        //        throw new Exception("Username or password is incorrect");
+            if (model == null || !validPass)
+                throw new Exception("Username or password is incorrect");
 
-        //    //Check if refreshtoken is active
-        //    var refreshToken = user.RefreshTokens.LastOrDefault();
-        //    if (refreshToken == null)
-        //        refreshToken = generateRefreshToken();
-        //    else if (refreshToken.IsExpired)
-        //        refreshToken = generateRefreshToken();
+            //Check if refreshtoken is active
+            var refreshToken = user.RefreshTokens.LastOrDefault();
+            if (refreshToken == null)
+                refreshToken = generateRefreshToken();
+            else if (refreshToken.IsExpired)
+                refreshToken = generateRefreshToken();
 
-        //    // authentication successful so generate jwt token
-        //    var jwtToken = await generateJwtToken(user);
+            // authentication successful, generate jwt token
+            var jwtToken = await generateJwtToken(user);
 
 
-        //    // save refresh token and jwtToken
-        //    user.RefreshTokens.Add(refreshToken);
-        //    user.AccessToken = jwtToken;
-        //    await userManager.UpdateAsync(user);
-        //    return Ok(new Response { Token = jwtToken, RefreshToken = refreshToken });
-        //}
+            // save refresh token and jwtToken
+            user.RefreshTokens.Add(refreshToken);
+            user.AccessToken = jwtToken;
+            await userManager.UpdateAsync(user);
+            return Ok(new Response { Message = "Login Successful", AccessToken = jwtToken, RefreshToken = refreshToken.Token });
+        }
 
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody]RegisterRequest model)
@@ -145,55 +149,54 @@ namespace NorthwindWebApi.Controllers
         //    return NotFound();
         //}
 
-        //private async Task<string> generateJwtToken(User user)
-        //{
-        //    var userRoles = await _userManager.GetRolesAsync(user);
+        private async Task<string> generateJwtToken(User user)
+        {
+            var userRoles = await userManager.GetRolesAsync(user);
 
-        //    //var country = northwindContext.Employees.Find(user.EmployeeID).Country.ToString();
-        //    var country = "sweden";
+            var country = northwindContext.Employees.Find(user.EmployeeID).Country.ToString();
 
-        //    var authClaims = new List<Claim>
-        //        {
-        //            new Claim(ClaimTypes.Name, user.UserName),
-        //            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-        //            new Claim(ClaimTypes.Country, country)
-        //        };
+            var authClaims = new List<Claim>
+                {
+                    new Claim(ClaimTypes.Name, user.UserName),
+                    new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+                    new Claim(ClaimTypes.Country, country)
+                };
 
-        //    foreach (var userRole in userRoles)
-        //    {
-        //        authClaims.Add(new Claim(ClaimTypes.Role, userRole));
-        //    }
+            foreach (var userRole in userRoles)
+            {
+                authClaims.Add(new Claim(ClaimTypes.Role, userRole));
+            }
 
-        //    var authSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["JWT:Secret"]));
+            var authSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["JWT:Secret"]));
 
-        //    var token = new JwtSecurityToken(
-        //        issuer: _configuration["JWT:ValidIssuer"],
-        //        audience: _configuration["JWT:ValidAudience"],
-        //        expires: DateTime.UtcNow.AddMinutes(30),
-        //        claims: authClaims,
-        //        signingCredentials: new SigningCredentials(authSigningKey, SecurityAlgorithms.HmacSha256)
-        //        );
+            var token = new JwtSecurityToken(
+                issuer: _configuration["JWT:ValidIssuer"],
+                audience: _configuration["JWT:ValidAudience"],
+                expires: DateTime.UtcNow.AddMinutes(30),
+                claims: authClaims,
+                signingCredentials: new SigningCredentials(authSigningKey, SecurityAlgorithms.HmacSha256)
+                );
 
-        //    return new JwtSecurityTokenHandler().WriteToken(token);
-        //}
+            return new JwtSecurityTokenHandler().WriteToken(token);
+        }
 
-        //private RefreshToken generateRefreshToken()
-        //{
-        //    return new RefreshToken
-        //    {
-        //        Token = randomTokenString(),
-        //        Expires = DateTime.UtcNow.AddDays(5),
-        //        Created = DateTime.UtcNow,
-        //    };
-        //}
+        private RefreshToken generateRefreshToken()
+        {
+            return new RefreshToken
+            {
+                Token = randomTokenString(),
+                Expires = DateTime.UtcNow.AddDays(5),
+                Created = DateTime.UtcNow,
+            };
+        }
 
-        //private string randomTokenString()
-        //{
-        //    using var rngCryptoServiceProvider = new RNGCryptoServiceProvider();
-        //    var randomBytes = new byte[40];
-        //    rngCryptoServiceProvider.GetBytes(randomBytes);
-        //    // convert random bytes to hex string
-        //    return BitConverter.ToString(randomBytes).Replace("-", "");
-        //}
+        private string randomTokenString()
+        {
+            using var rngCryptoServiceProvider = new RNGCryptoServiceProvider();
+            var randomBytes = new byte[40];
+            rngCryptoServiceProvider.GetBytes(randomBytes);
+            // convert random bytes to hex string
+            return BitConverter.ToString(randomBytes).Replace("-", "");
+        }
     }
 }
