@@ -52,7 +52,7 @@ namespace NorthwindWebApi.Controllers
             bool validPass = await userManager.CheckPasswordAsync(user, model.Password);
 
             if (model == null || !validPass)
-                throw new Exception("Username or password is incorrect");
+                return BadRequest(new Response { Message = "Username or password is incorrect" });
 
             //Check if refreshtoken is active
             var refreshToken = user.RefreshTokens.LastOrDefault();
@@ -148,6 +148,11 @@ namespace NorthwindWebApi.Controllers
 
         //    return NotFound();
         //}
+
+
+
+
+        // HELPER METHODS 
 
         private async Task<string> generateJwtToken(User user)
         {
