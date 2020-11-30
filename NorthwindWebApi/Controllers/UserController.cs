@@ -144,11 +144,47 @@ namespace NorthwindWebApi.Controllers
         }
 
         [Authorize]
-        [HttpPut("UpdateUser")]
-        public async Task<IActionResult> UpdateUser([FromBody]UpdateRequest updateRequest)
+        [HttpPut("UpdateUser/{userName?}")]
+        public async Task<IActionResult> UpdateUser([FromBody] UpdateRequest updateRequest, string? userName)
         {
-            var user = Request.HttpContext.User;
-            var employee = await userManager.FindByNameAsync(user.Identity.Name);
+            var requestUser = Request.HttpContext.User;
+            var employee = await userManager.FindByNameAsync(requestUser.Identity.Name);
+            var updateUserAsAdmin = await userManager.FindByNameAsync(userName);
+
+            if (updateUserAsAdmin == null)
+                return BadRequest(new Response { Message = "Could not find user with that username" });
+
+            if (!requestUser.IsInRole("Admin") && userName != null)
+            {
+                return Unauthorized(new Response { Message = "Only Admin can update other users" });
+            }
+
+            if (requestUser.IsInRole("Admin") && userName != null)
+            {
+                employee = await userManager.FindByNameAsync(userName);
+
+                if (updateRequest.UserName != null)
+                    employee.UserName = updateRequest.UserName;
+                if (updateRequest.FirstName != null)
+                    employee.FirstName = updateRequest.FirstName;
+                if (updateRequest.LastName != null)
+                    employee.LastName = updateRequest.LastName;
+                if (updateRequest.Country != null)
+                    employee.Country = updateRequest.Country;
+                await userManager.UpdateAsync(employee);
+                if (updateRequest.Role != null)
+                {
+                    var addRole = RoleExists(updateRequest.Role);
+
+                    if (addRole == null)
+                        return BadRequest(new Response { Message = "Role does not exist. Avallible roles are: Vd, CountryManager" });
+
+                    await userManager.AddToRoleAsync(employee, addRole);
+                }
+                await userManager.ChangePasswordAsync(employee, employee.PasswordHash, updateRequest.Password);
+
+                return Ok(new Response { Message = "Information updated successfully" });
+            }
 
             if (Request.HttpContext.User.IsInRole(Roles.Employee))
             {
@@ -166,20 +202,34 @@ namespace NorthwindWebApi.Controllers
                 return Ok(new Response { Message = "Information updated successfully" });
             }
 
-            //if (user.IsInRole("Admin") || user.IsInRole("Vd"))
-            //    return Ok();
-            //if (user.IsInRole("Admin") || user.IsInRole("Vd"))
-            //    return Ok();
-
             return NotFound(new Response { Message = "Could not find any users" });
         }
 
+        [Authorize(Roles = Roles.Admin)]
+        [HttpPost("DeleteUser")]
+        public async Task<IActionResult> DeleteUser([FromBody] DeleteRequest deleteRequest)
+        {
+            var employee = await userManager.FindByNameAsync(deleteRequest.UserName);
+            if(employee != null)
+            {
+                await userManager.DeleteAsync(employee);
+                return Ok(new Response { Message = "User deleted succesfully" });
+            }
 
-        // Delete - Admin
-
+            return BadRequest(new Response { Message = "User not found"});
+        }
 
 
         // HELPER METHODS 
+
+        private string RoleExists(string role)
+        {
+            if (role == Roles.VD)
+                return role;
+            if (role == Roles.CountryManager)
+                return role;
+            return null;
+        }
 
         private async Task<string> generateJwtToken(User user)
         {
