@@ -33,8 +33,6 @@ namespace NorthwindWebApi
 
             services.AddControllers();
 
-            //services.AddScoped<IAccountService, AccountService>();
-
             services.AddIdentity<User, IdentityRole>()
                     .AddEntityFrameworkStores<IdentityContext>()
                     .AddDefaultTokenProviders()
@@ -44,6 +42,8 @@ namespace NorthwindWebApi
             {
                 options.AddPolicy("AboveEmployee", policy =>
                                   policy.RequireRole("Admin", "Vd", "CountryManager"));
+                options.AddPolicy("AdminVd", policy =>
+                                  policy.RequireRole("Admin", "Vd"));
             });
 
             // Password settings

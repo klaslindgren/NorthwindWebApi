@@ -40,7 +40,7 @@ namespace NorthwindWebApi.Controllers
         public async Task<ActionResult<IEnumerable<Orders>>> GetMyOrders(string id = null)
         {
             var user = Request.HttpContext.User;
-            var employee = await userManager.GetUserAsync(user);
+            var employee = await userManager.FindByNameAsync(user.Identity.Name);
 
             if (!(user.IsInRole("Admin") || user.IsInRole("Vd")))
                 return await northwindContext.Orders.Where(e => e.EmployeeId == employee.EmployeeID).ToListAsync();
@@ -62,7 +62,7 @@ namespace NorthwindWebApi.Controllers
         public async Task<ActionResult<IEnumerable<Orders>>> GetCountryOrders(string country)
         {
             var user = Request.HttpContext.User;
-            var employee = await userManager.GetUserAsync(user);
+            var employee = await userManager.FindByNameAsync(user.Identity.Name);
 
             if (user.IsInRole("Admin") || user.IsInRole("Vd"))
                 return await northwindContext.Orders.Where(c => c.ShipCountry == country).ToListAsync();
@@ -82,7 +82,7 @@ namespace NorthwindWebApi.Controllers
         public async Task<ActionResult<IEnumerable<Orders>>> GetAllOrders()
         {
             var user = Request.HttpContext.User;
-            var employee = await userManager.GetUserAsync(user);
+            var employee = await userManager.FindByNameAsync(user.Identity.Name);
 
             if (user.IsInRole("Admin") || user.IsInRole("Vd"))
                 return await northwindContext.Orders.ToListAsync();

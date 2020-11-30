@@ -1,13 +1,9 @@
-﻿using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Collections.Generic;
 using NorthwindWebApi.Entities;
 using NorthwindWebApi.Models.Accounts;
-using NorthwindWebApi.Services;
 using System.Linq;
-using Microsoft.AspNetCore.Authorization.Infrastructure;
-using Microsoft.EntityFrameworkCore.Internal;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Authorization;
 using NorthwindWebApi.Models.Account;
@@ -68,7 +64,7 @@ namespace NorthwindWebApi.Controllers
             // save refresh token and jwtToken
             user.RefreshTokens.Add(refreshToken);
             user.AccessToken = jwtToken;
-            await userManager.UpdateAsync(user);
+            await userManager.UpdateAsync(user);  
             return Ok(new Response { Message = "Login Successful", AccessToken = jwtToken, RefreshToken = refreshToken.Token });
         }
 
@@ -84,10 +80,6 @@ namespace NorthwindWebApi.Controllers
                 await roleManager.CreateAsync(new IdentityRole(Roles.Admin));
                 await roleManager.CreateAsync(new IdentityRole(Roles.CountryManager));
             }
-
-            var emailExists = await userManager.FindByEmailAsync(model.Email);          //  Check if email already registered
-            if (emailExists != null)
-                return BadRequest(new Response { Status = "Error", Message = "Email already registered!" });
 
             var userNameExists = await userManager.FindByNameAsync(model.UserName);         //  Check if username already registered
             if (userNameExists != null)
@@ -112,7 +104,6 @@ namespace NorthwindWebApi.Controllers
             user = new User()
             {
                 UserName = model.UserName,
-                Email = model.Email,
                 FirstName = model.FirstName,
                 LastName = model.LastName,
                 SecurityStamp = Guid.NewGuid().ToString(),
@@ -133,22 +124,58 @@ namespace NorthwindWebApi.Controllers
 
         }
 
-        //[Authorize(Policy = "AboveEmployee")]
-        //[HttpGet("GetAllUsers")]
-        //public async Task<ActionResult<IEnumerable<UserModel>>> GetAllUsers()
-        //{
-        //    var user = Request.HttpContext.User;
-        //    var employee = await userManager.GetUserAsync(user);
+        [Authorize(Policy = "AdminVd")]
+        [HttpGet("GetUsers")]
+        public async Task<ActionResult<IEnumerable<UserModel>>> GetUsers()
+        {
+            var userList = await userManager.Users.ToListAsync();
+            List<UserModel> result = new List<UserModel>();
 
-        //    if (user.IsInRole("Admin") || user.IsInRole("Vd"))
-        //        return await northwindContext.Employees.Where(e => e.EmployeeId == employee.EmployeeID).ToListAsync();
+            if (userList != null)
+            {
+                foreach (var item in userList)
+                {
+                    result.Add(new UserModel { UserName = item.UserName, FirstName = item.FirstName, LastName = item.LastName, Country = item.Country });
+                }
+                return Ok(result);
+            }
 
-        //    else if (user.IsInRole("CountryManager"))
-        //        return await northwindContext.Orders.Where(c => c.ShipCountry == employee.Country).ToListAsync();
+            return NotFound(new Response { Message = "Could not find any users"});
+        }
 
-        //    return NotFound();
-        //}
+        [Authorize]
+        [HttpPut("UpdateUser")]
+        public async Task<IActionResult> UpdateUser([FromBody]UpdateRequest updateRequest)
+        {
+            var user = Request.HttpContext.User;
+            var employee = await userManager.FindByNameAsync(user.Identity.Name);
 
+            if (Request.HttpContext.User.IsInRole(Roles.Employee))
+            {
+                if(updateRequest.UserName != null)
+                    employee.UserName = updateRequest.UserName;
+                if (updateRequest.FirstName != null)
+                    employee.FirstName = updateRequest.FirstName;
+                if (updateRequest.LastName != null)
+                    employee.LastName = updateRequest.LastName;
+                if (updateRequest.Country != null)
+                    employee.Country = updateRequest.Country;
+                await userManager.UpdateAsync(employee);
+                await userManager.ChangePasswordAsync(employee, employee.PasswordHash, updateRequest.Password);
+
+                return Ok(new Response { Message = "Information updated successfully" });
+            }
+
+            //if (user.IsInRole("Admin") || user.IsInRole("Vd"))
+            //    return Ok();
+            //if (user.IsInRole("Admin") || user.IsInRole("Vd"))
+            //    return Ok();
+
+            return NotFound(new Response { Message = "Could not find any users" });
+        }
+
+
+        // Delete - Admin
 
 
 

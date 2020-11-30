@@ -7,9 +7,6 @@ namespace NorthwindWebApi.Models.Accounts
         [Required]
         public string UserName { get; set; }
         [Required]
-        [EmailAddress]
-        public string Email { get; set; }
-        [Required]
         public string FirstName { get; set; }
         [Required]
         public string LastName { get; set; }
@@ -20,6 +17,6 @@ namespace NorthwindWebApi.Models.Accounts
         [Compare("Password")]
         public string ConfirmPassword { get; set; }
         [Required]
-        public object Country { get; set; }
+        public string Country { get; set; }
     }
 }
