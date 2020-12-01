@@ -145,13 +145,14 @@ namespace NorthwindWebApi.Controllers
 
         [Authorize]
         [HttpPut("UpdateUser/{userName?}")]
-        public async Task<IActionResult> UpdateUser([FromBody] UpdateRequest updateRequest, string? userName)
+        public async Task<IActionResult> UpdateUser([FromBody] UpdateRequest updateRequest, string userName)
         {
             var requestUser = Request.HttpContext.User;
-            var employee = await userManager.FindByNameAsync(requestUser.Identity.Name);
-            var updateUserAsAdmin = await userManager.FindByNameAsync(userName);
+            var user = await userManager.FindByNameAsync(requestUser.Identity.Name);
+            var employee = northwindContext.Employees.Where(e => e.EmployeeId == user.EmployeeID).FirstOrDefault();
+            var updateUserAsAdmin = userManager.Users.Where(u => u.UserName == userName).FirstOrDefault();
 
-            if (updateUserAsAdmin == null)
+            if (updateUserAsAdmin == null && userName != null)
                 return BadRequest(new Response { Message = "Could not find user with that username" });
 
             if (!requestUser.IsInRole("Admin") && userName != null)
@@ -161,17 +162,17 @@ namespace NorthwindWebApi.Controllers
 
             if (requestUser.IsInRole("Admin") && userName != null)
             {
-                employee = await userManager.FindByNameAsync(userName);
+                user = await userManager.FindByNameAsync(userName);
 
                 if (updateRequest.UserName != null)
-                    employee.UserName = updateRequest.UserName;
+                    user.UserName = updateRequest.UserName;
                 if (updateRequest.FirstName != null)
-                    employee.FirstName = updateRequest.FirstName;
+                    user.FirstName = updateRequest.FirstName;
                 if (updateRequest.LastName != null)
-                    employee.LastName = updateRequest.LastName;
+                    user.LastName = updateRequest.LastName;
                 if (updateRequest.Country != null)
-                    employee.Country = updateRequest.Country;
-                await userManager.UpdateAsync(employee);
+                    user.Country = updateRequest.Country;
+                await userManager.UpdateAsync(user);
                 if (updateRequest.Role != null)
                 {
                     var addRole = RoleExists(updateRequest.Role);
@@ -179,9 +180,9 @@ namespace NorthwindWebApi.Controllers
                     if (addRole == null)
                         return BadRequest(new Response { Message = "Role does not exist. Avallible roles are: Vd, CountryManager" });
 
-                    await userManager.AddToRoleAsync(employee, addRole);
+                    await userManager.AddToRoleAsync(user, addRole);
                 }
-                await userManager.ChangePasswordAsync(employee, employee.PasswordHash, updateRequest.Password);
+                await userManager.ChangePasswordAsync(user, user.PasswordHash, updateRequest.Password);
 
                 return Ok(new Response { Message = "Information updated successfully" });
             }
@@ -189,15 +190,33 @@ namespace NorthwindWebApi.Controllers
             if (Request.HttpContext.User.IsInRole(Roles.Employee))
             {
                 if(updateRequest.UserName != null)
-                    employee.UserName = updateRequest.UserName;
+                    user.UserName = updateRequest.UserName;
                 if (updateRequest.FirstName != null)
+                { 
+                    user.FirstName = updateRequest.FirstName;
                     employee.FirstName = updateRequest.FirstName;
-                if (updateRequest.LastName != null)
+                    northwindContext.Update(employee);
+                    await northwindContext.SaveChangesAsync();
+                }
+
+                if (updateRequest.LastName != null) 
+                {
+                    user.LastName = updateRequest.LastName;
                     employee.LastName = updateRequest.LastName;
+                    northwindContext.Update(employee);
+                    await northwindContext.SaveChangesAsync();
+                }
+
                 if (updateRequest.Country != null)
+                {
+                    user.Country = updateRequest.Country;
                     employee.Country = updateRequest.Country;
-                await userManager.UpdateAsync(employee);
-                await userManager.ChangePasswordAsync(employee, employee.PasswordHash, updateRequest.Password);
+                    northwindContext.Update(employee);
+                    await northwindContext.SaveChangesAsync();
+                }
+
+                await userManager.UpdateAsync(user);
+                await userManager.ChangePasswordAsync(user, user.PasswordHash, updateRequest.Password);
 
                 return Ok(new Response { Message = "Information updated successfully" });
             }
