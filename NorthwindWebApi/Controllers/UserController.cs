@@ -73,7 +73,8 @@ namespace NorthwindWebApi.Controllers
         {
             User user;
 
-            if (roleManager.Roles.Count() == 0)         //  Create Roles
+            //  Create Roles
+            if (roleManager.Roles.Count() == 0)         
             {
                 await roleManager.CreateAsync(new IdentityRole(Roles.Employee));
                 await roleManager.CreateAsync(new IdentityRole(Roles.VD));
@@ -81,14 +82,20 @@ namespace NorthwindWebApi.Controllers
                 await roleManager.CreateAsync(new IdentityRole(Roles.CountryManager));
             }
 
-            var userNameExists = await userManager.FindByNameAsync(model.UserName);         //  Check if username already registered
+
+            //  Check if username already registered
+            var userNameExists = await userManager.FindByNameAsync(model.UserName);         
             if (userNameExists != null)
                 return BadRequest(new Response { Status = "Error", Message = "Username already exists, try another username!" });
 
-            var employeeExists = northwindContext.Employees.Where(e => e.FirstName == model.FirstName && e.LastName == model.LastName).FirstOrDefault(); //  Check if user already exists in Northwind
+
+            //  Check if user already exists in Northwind
+            var employeeExists = northwindContext.Employees.Where(e => e.FirstName == model.FirstName && e.LastName == model.LastName).FirstOrDefault();
+
+            //      Add user to Northwind
             if (employeeExists == null)
             {
-                using (SqlConnection connection = new SqlConnection(northwindContext.Database.GetDbConnection().ConnectionString))          //      Add user to Northwind
+                using (SqlConnection connection = new SqlConnection(northwindContext.Database.GetDbConnection().ConnectionString))
                 {
                     connection.Open();
                     SqlCommand command = new SqlCommand("INSERT INTO Employees (LastName, FirstName, Country) VALUES (@LastName, @FirstName, @Country)", connection);
@@ -99,8 +106,11 @@ namespace NorthwindWebApi.Controllers
                 }
             }
 
+            //   Get EmployeeID from northwind
             var employee = northwindContext.Employees.Where(e => e.FirstName == model.FirstName && e.LastName == model.LastName).FirstOrDefault();
             
+
+            //  Create new user in identity
             user = new User()
             {
                 UserName = model.UserName,
@@ -115,10 +125,12 @@ namespace NorthwindWebApi.Controllers
             if (!result.Succeeded)
                 return BadRequest(new Response { Status = "Error", Message = "User creation failed! Please check user details and try again." });
 
-            if (identityContext.Users.Count() == 1)                         //  First user created gets Admin-role
+            //  First user created gets Admin-role
+            if (identityContext.Users.Count() == 1)                         
                 await userManager.AddToRoleAsync(user, Roles.Admin);
 
-            await userManager.AddToRoleAsync(user, Roles.Employee);     //  All other users gets Employee-role, Further roles can be added by admin
+            //  All other users gets Employee-role, Further roles can be added by admin
+            await userManager.AddToRoleAsync(user, Roles.Employee);     
 
             return Ok(new Response { Status = "Success", Message = "Potato created successfully!" });
 
