@@ -43,11 +43,11 @@ namespace NorthwindWebApi.Controllers
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginModel model)
         {
+            //  Check if user exists with valid password
             var user = userManager.Users.Where(u => u.UserName == model.UserName).FirstOrDefault();
-
             bool validPass = await userManager.CheckPasswordAsync(user, model.Password);
 
-            if (model == null || !validPass)
+            if (user == null || !validPass)
                 return BadRequest(new Response { Message = "Username or password is incorrect" });
 
             //Check if refreshtoken is active
