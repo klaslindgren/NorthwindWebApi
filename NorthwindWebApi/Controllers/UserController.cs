@@ -190,7 +190,7 @@ namespace NorthwindWebApi.Controllers
                     var addRole = RoleExists(updateRequest.Role);
 
                     if (addRole == null)
-                        return BadRequest(new Response { Message = "Role does not exist. Avallible roles are: Vd, CountryManager" });
+                        return BadRequest(new Response { Message = "Role does not exist. Avalible roles are: Vd, CountryManager" });
 
                     await userManager.AddToRoleAsync(user, addRole);
                 }
@@ -199,7 +199,7 @@ namespace NorthwindWebApi.Controllers
                 return Ok(new Response { Message = "Information updated successfully" });
             }
 
-            if (Request.HttpContext.User.IsInRole(Roles.Employee))
+            if (requestUser.IsInRole(Roles.Employee))
             {
                 if(updateRequest.UserName != null)
                     user.UserName = updateRequest.UserName;
@@ -248,6 +248,14 @@ namespace NorthwindWebApi.Controllers
             }
 
             return BadRequest(new Response { Message = "User not found"});
+        }
+
+        [Authorize]
+        [HttpGet("refreshtoken")]
+        public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequest refreshToken)
+        {
+
+            return BadRequest(new Response { Message = "RefreshToken is not valid. Please Log in Again" });
         }
 
 
