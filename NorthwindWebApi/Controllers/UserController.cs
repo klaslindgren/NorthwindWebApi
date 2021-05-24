@@ -251,9 +251,23 @@ namespace NorthwindWebApi.Controllers
         }
 
         [Authorize]
-        [HttpGet("refreshtoken")]
+        [HttpPost("refreshtoken")]
         public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequest refreshToken)
         {
+            var requestUser = Request.HttpContext.User;
+            var user = await userManager.FindByNameAsync(requestUser.Identity.Name);
+
+            var latestRefreshToken = user.RefreshTokens.OrderByDescending(t => t.Created).FirstOrDefault();
+
+            
+            if(!latestRefreshToken.IsExpired && refreshToken.RefreshToken == latestRefreshToken.Token)
+            {
+                var jwtToken = await generateJwtToken(user);
+
+                user.AccessToken = jwtToken;
+                await userManager.UpdateAsync(user);
+                return Ok(new Response { Message = "New Access Token Created", AccessToken = jwtToken});
+            }
 
             return BadRequest(new Response { Message = "RefreshToken is not valid. Please Log in Again" });
         }

@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Authentication.OAuth.Claims;
 using System.Security.Claims;
 using Microsoft.Extensions.Configuration;
+using NorthwindWebApi.Models.Accounts;
 
 namespace NorthwindWebApi.Controllers
 {
@@ -42,13 +43,21 @@ namespace NorthwindWebApi.Controllers
             var user = Request.HttpContext.User;
             var employee = await userManager.FindByNameAsync(user.Identity.Name);
 
+            //  return employees orders 
             if (!(user.IsInRole("Admin") || user.IsInRole("Vd")))
-                return await northwindContext.Orders.Where(e => e.EmployeeId == employee.EmployeeID).ToListAsync();
+            {
+                if (string.IsNullOrEmpty(id))
+                    return await northwindContext.Orders.Where(e => e.EmployeeId == employee.EmployeeID).ToListAsync();
+                if (!string.IsNullOrEmpty(id))
+                    return BadRequest(new Response { Message = "You are only allowed to retrieve your own orders" });
+            }
 
+            //  Return admin and vds own orders
             if (string.IsNullOrEmpty(id))
                 return await northwindContext.Orders.Where(e => e.EmployeeId == employee.EmployeeID).ToListAsync();
 
-            if (user.IsInRole("Admin") || user.IsInRole("Vd"))
+            //  Return orders by id, only allowed by admin and vd
+            if ((user.IsInRole("Admin") || user.IsInRole("Vd")) && !string.IsNullOrEmpty(id))
                 return await northwindContext.Orders.Where(e => e.EmployeeId == Int32.Parse(id)).ToListAsync();
 
 
