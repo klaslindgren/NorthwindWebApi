@@ -172,16 +172,34 @@ namespace NorthwindWebApi.Controllers
             {
                 user = await userManager.FindByNameAsync(userName);
 
-                if (updateRequest.UserName != null)
+                if (updateRequest.UserName != string.Empty)
                     user.UserName = updateRequest.UserName;
-                if (updateRequest.FirstName != null)
+                if (updateRequest.FirstName != string.Empty)
+                {
                     user.FirstName = updateRequest.FirstName;
-                if (updateRequest.LastName != null)
+                    employee.FirstName = updateRequest.FirstName;
+                    northwindContext.Update(employee);
+                    await northwindContext.SaveChangesAsync();
+                }
+
+                if (updateRequest.LastName != string.Empty)
+                {
                     user.LastName = updateRequest.LastName;
-                if (updateRequest.Country != null)
+                    employee.LastName = updateRequest.LastName;
+                    northwindContext.Update(employee);
+                    await northwindContext.SaveChangesAsync();
+                }
+
+                if (updateRequest.Country != string.Empty)
+                {
                     user.Country = updateRequest.Country;
+                    employee.Country = updateRequest.Country;
+                    northwindContext.Update(employee);
+                    await northwindContext.SaveChangesAsync();
+                }
                 await userManager.UpdateAsync(user);
-                if (updateRequest.Role != null)
+
+                if (updateRequest.Role != string.Empty)
                 {
                     var addRole = RoleExists(updateRequest.Role);
 
@@ -190,16 +208,17 @@ namespace NorthwindWebApi.Controllers
 
                     await userManager.AddToRoleAsync(user, addRole);
                 }
-                await userManager.ChangePasswordAsync(user, user.PasswordHash, updateRequest.Password);
+                if (updateRequest.Password != string.Empty)
+                    await userManager.ChangePasswordAsync(user, user.PasswordHash, updateRequest.Password);
 
                 return Ok(new Response { Message = "Information updated successfully" });
             }
 
             if (requestUser.IsInRole(Roles.Employee))
             {
-                if(updateRequest.UserName != null)
+                if(updateRequest.UserName != string.Empty)
                     user.UserName = updateRequest.UserName;
-                if (updateRequest.FirstName != null)
+                if (updateRequest.FirstName != string.Empty)
                 { 
                     user.FirstName = updateRequest.FirstName;
                     employee.FirstName = updateRequest.FirstName;
@@ -207,7 +226,7 @@ namespace NorthwindWebApi.Controllers
                     await northwindContext.SaveChangesAsync();
                 }
 
-                if (updateRequest.LastName != null) 
+                if (updateRequest.LastName != string.Empty) 
                 {
                     user.LastName = updateRequest.LastName;
                     employee.LastName = updateRequest.LastName;
@@ -215,7 +234,7 @@ namespace NorthwindWebApi.Controllers
                     await northwindContext.SaveChangesAsync();
                 }
 
-                if (updateRequest.Country != null)
+                if (updateRequest.Country != string.Empty)
                 {
                     user.Country = updateRequest.Country;
                     employee.Country = updateRequest.Country;
@@ -224,7 +243,9 @@ namespace NorthwindWebApi.Controllers
                 }
 
                 await userManager.UpdateAsync(user);
-                await userManager.ChangePasswordAsync(user, user.PasswordHash, updateRequest.Password);
+                if (updateRequest.Password != string.Empty)
+                    await userManager.ChangePasswordAsync(user, user.PasswordHash, updateRequest.Password);
+
 
                 return Ok(new Response { Message = "Information updated successfully" });
             }
@@ -247,23 +268,25 @@ namespace NorthwindWebApi.Controllers
         }
 
 
-        [HttpPost("refreshtoken")]
-        public async Task<IActionResult> RefreshToken([FromBody] string refreshToken)
+        [HttpPost("RefreshToken")]
+        public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequest request)
         {
-            var user = identityContext.User.Where(r => r.RefreshToken.Token == refreshToken).FirstOrDefault();
-            //var requestUser = Request.HttpContext.User;
-            //var user = await userManager.FindByNameAsync(requestUser.Identity.Name);
+            //  get user if its the lastest refreshtoken
+            var user = await identityContext.User.Where(r => r.RefreshToken.Token == request.RefreshToken).Include(r => r.RefreshToken).FirstOrDefaultAsync();
 
-            var latestRefreshToken = user.RefreshToken;
+            //  return if refreshtoken not active
+            if (user == null)
+                return BadRequest(new Response { Message = "RefreshToken is not valid. Please Log in Again" });
 
-            
-            if(!latestRefreshToken.IsExpired && refreshToken.RefreshToken == latestRefreshToken.Token)
+
+            if (!user.RefreshToken.IsExpired)
             {
                 var jwtToken = await generateJwtToken(user);
-
+                var refreshToken = generateRefreshToken();
                 user.Token = jwtToken;
+                user.RefreshToken = refreshToken;
                 await userManager.UpdateAsync(user);
-                return Ok(new Response { Message = "New Token Created", Token = jwtToken});
+                return Ok(new Response { Message = "New Access and refreshtoken Created", Token = jwtToken, RefreshToken = refreshToken});
             }
 
             return BadRequest(new Response { Message = "RefreshToken is not valid. Please Log in Again" });

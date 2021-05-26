@@ -78,7 +78,7 @@ namespace NorthwindWebApi.Controllers
 
             else if (user.IsInRole("CountryManager"))
             {
-                if (user.FindFirst("Country").ToString() != country)
+                if (!user.HasClaim(ClaimTypes.Country, country))
                     return Unauthorized();
                 
                 return await northwindContext.Orders.Where(c => c.ShipCountry == employee.Country).ToListAsync();
@@ -102,37 +102,6 @@ namespace NorthwindWebApi.Controllers
             return NotFound();
         }
 
-        // PUT: api/Orders/5
-        // To protect from overposting attacks, enable the specific properties you want to bind to, for
-        // more details, see https://go.microsoft.com/fwlink/?linkid=2123754.
-        [HttpPut("{id}")]
-        public async Task<IActionResult> PutOrders(int id, Orders orders)
-        {
-            if (id != orders.OrderId)
-            {
-                return BadRequest();
-            }
-
-            northwindContext.Entry(orders).State = EntityState.Modified;
-
-            try
-            {
-                await northwindContext.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!OrdersExists(id))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
-            }
-
-            return NoContent();
-        }
 
         // POST: api/Orders
         // To protect from overposting attacks, enable the specific properties you want to bind to, for
