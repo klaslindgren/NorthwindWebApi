@@ -1,19 +1,19 @@
-﻿using System;
+﻿using Microsoft.EntityFrameworkCore;
+using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore;
-using System.ComponentModel.DataAnnotations;
 
 namespace NorthwindWebApi.Entities
 {
-    public class RefreshToken
+    public class Token
     {
         [Key]
         public int Id { get; set; }
-        public string Token { get; set; }
+        public string Payload { get; set; }
         public DateTime Expires { get; set; }
         public bool IsExpired => DateTime.UtcNow >= Expires;
-        public DateTime Created { get; set; }
     }
 }
+

@@ -50,22 +50,18 @@ namespace NorthwindWebApi.Controllers
             if (user == null || !validPass)
                 return BadRequest(new Response { Message = "Username or password is incorrect" });
 
-            //Check if refreshtoken is active
-            var refreshToken = user.RefreshTokens.LastOrDefault();
-            if (refreshToken == null)
-                refreshToken = generateRefreshToken();
-            else if (refreshToken.IsExpired)
-                refreshToken = generateRefreshToken();
+            // Generate refresh token
+            var refreshToken = generateRefreshToken();
 
-            // authentication successful, generate jwt token
+            // generate jwt token
             var jwtToken = await generateJwtToken(user);
 
 
             // save refresh token and jwtToken
-            user.RefreshTokens.Add(refreshToken);
-            user.AccessToken = jwtToken;
+            user.RefreshToken = refreshToken;
+            user.Token = jwtToken;
             await userManager.UpdateAsync(user);  
-            return Ok(new Response { Message = "Login Successful", AccessToken = jwtToken, RefreshToken = refreshToken.Token });
+            return Ok(new Response { Message = "Login Successful", Token = jwtToken, RefreshToken = refreshToken });
         }
 
         [HttpPost("register")]
@@ -250,23 +246,24 @@ namespace NorthwindWebApi.Controllers
             return BadRequest(new Response { Message = "User not found"});
         }
 
-        [Authorize]
-        [HttpPost("refreshtoken")]
-        public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequest refreshToken)
-        {
-            var requestUser = Request.HttpContext.User;
-            var user = await userManager.FindByNameAsync(requestUser.Identity.Name);
 
-            var latestRefreshToken = user.RefreshTokens.OrderByDescending(t => t.Created).FirstOrDefault();
+        [HttpPost("refreshtoken")]
+        public async Task<IActionResult> RefreshToken([FromBody] string refreshToken)
+        {
+            var user = identityContext.User.Where(r => r.RefreshToken.Token == refreshToken).FirstOrDefault();
+            //var requestUser = Request.HttpContext.User;
+            //var user = await userManager.FindByNameAsync(requestUser.Identity.Name);
+
+            var latestRefreshToken = user.RefreshToken;
 
             
             if(!latestRefreshToken.IsExpired && refreshToken.RefreshToken == latestRefreshToken.Token)
             {
                 var jwtToken = await generateJwtToken(user);
 
-                user.AccessToken = jwtToken;
+                user.Token = jwtToken;
                 await userManager.UpdateAsync(user);
-                return Ok(new Response { Message = "New Access Token Created", AccessToken = jwtToken});
+                return Ok(new Response { Message = "New Token Created", Token = jwtToken});
             }
 
             return BadRequest(new Response { Message = "RefreshToken is not valid. Please Log in Again" });
@@ -284,7 +281,7 @@ namespace NorthwindWebApi.Controllers
             return null;
         }
 
-        private async Task<string> generateJwtToken(User user)
+        private async Task<Token> generateJwtToken(User user)
         {
             var userRoles = await userManager.GetRolesAsync(user);
 
@@ -304,7 +301,7 @@ namespace NorthwindWebApi.Controllers
 
             var authSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["JWT:Secret"]));
 
-            var token = new JwtSecurityToken(
+            var createToken = new JwtSecurityToken(
                 issuer: _configuration["JWT:ValidIssuer"],
                 audience: _configuration["JWT:ValidAudience"],
                 expires: DateTime.UtcNow.AddMinutes(30),
@@ -312,7 +309,13 @@ namespace NorthwindWebApi.Controllers
                 signingCredentials: new SigningCredentials(authSigningKey, SecurityAlgorithms.HmacSha256)
                 );
 
-            return new JwtSecurityTokenHandler().WriteToken(token);
+            Token token = new Token()
+            {
+                Payload = new JwtSecurityTokenHandler().WriteToken(createToken),
+                Expires = DateTime.UtcNow.AddMinutes(30)
+            };
+
+            return token;
         }
 
         private RefreshToken generateRefreshToken()
