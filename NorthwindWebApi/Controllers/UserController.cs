@@ -257,10 +257,13 @@ namespace NorthwindWebApi.Controllers
         [HttpPost("DeleteUser")]
         public async Task<IActionResult> DeleteUser([FromBody] DeleteRequest deleteRequest)
         {
-            var employee = await userManager.FindByNameAsync(deleteRequest.UserName);
-            if(employee != null)
+            var user = await userManager.FindByNameAsync(deleteRequest.UserName);
+            if(user != null)
             {
-                await userManager.DeleteAsync(employee);
+                var employee = northwindContext.Employees.Where(e => e.EmployeeId == user.EmployeeID).FirstOrDefault();
+                northwindContext.Remove(employee);
+                await northwindContext.SaveChangesAsync();
+                await userManager.DeleteAsync(user);
                 return Ok(new Response { Message = "User deleted succesfully" });
             }
 

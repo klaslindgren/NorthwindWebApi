@@ -46,16 +46,16 @@ namespace NorthwindWebApi
                                   policy.RequireRole("Admin", "Vd"));
             });
 
-            // Password settings
-            //services.Configure<IdentityOptions>(options =>
-            //{
-            //    options.Password.RequiredLength = 10;
-            //    options.Password.RequiredUniqueChars = 3;
-            //    options.Password.RequireDigit = true;
-            //    options.Password.RequireLowercase = true;
-            //    options.Password.RequireNonAlphanumeric = true;
-            //    options.Password.RequireUppercase = true;
-            //});
+            //Password settings
+            services.Configure<IdentityOptions>(options =>
+            {
+                options.Password.RequiredLength = 10;
+                options.Password.RequiredUniqueChars = 3;
+                options.Password.RequireDigit = true;
+                options.Password.RequireLowercase = true;
+                options.Password.RequireNonAlphanumeric = true;
+                options.Password.RequireUppercase = true;
+            });
 
             services.AddAuthentication(options =>
             {
