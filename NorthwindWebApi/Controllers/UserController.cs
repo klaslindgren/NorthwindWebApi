@@ -84,6 +84,18 @@ namespace NorthwindWebApi.Controllers
             if (userNameExists != null)
                 return BadRequest(new Response { Status = "Error", Message = "Username already exists, try another username!" });
 
+            //  Create new user in identity
+            user = new User()
+            {
+                UserName = model.UserName,
+                FirstName = model.FirstName,
+                LastName = model.LastName,
+                SecurityStamp = Guid.NewGuid().ToString(),
+            };
+
+            var result = await userManager.CreateAsync(user, model.Password);
+            if (!result.Succeeded)
+                return BadRequest(new Response { Status = "Error", Message = "User creation failed! Please check user details and try again." });
 
             //  Check if user already exists in Northwind
             var employeeExists = northwindContext.Employees.Where(e => e.FirstName == model.FirstName && e.LastName == model.LastName).FirstOrDefault();
@@ -102,24 +114,11 @@ namespace NorthwindWebApi.Controllers
                 }
             }
 
-            //   Get EmployeeID from northwind
+            //   Get EmployeeID and country from northwind
             var employee = northwindContext.Employees.Where(e => e.FirstName == model.FirstName && e.LastName == model.LastName).FirstOrDefault();
-            
-
-            //  Create new user in identity
-            user = new User()
-            {
-                UserName = model.UserName,
-                FirstName = model.FirstName,
-                LastName = model.LastName,
-                SecurityStamp = Guid.NewGuid().ToString(),
-                EmployeeID = employee.EmployeeId,
-                Country = employee.Country
-            };
-
-            var result = await userManager.CreateAsync(user, model.Password);
-            if (!result.Succeeded)
-                return BadRequest(new Response { Status = "Error", Message = "User creation failed! Please check user details and try again." });
+            user.EmployeeID = employee.EmployeeId;
+            user.Country = employee.Country;
+            await userManager.UpdateAsync(user);
 
             //  First user created gets Admin-role
             if (identityContext.Users.Count() == 1)                         
@@ -269,7 +268,6 @@ namespace NorthwindWebApi.Controllers
 
             return BadRequest(new Response { Message = "User not found"});
         }
-
 
         [HttpPost("RefreshToken")]
         public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequest request)
