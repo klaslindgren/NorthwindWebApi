@@ -102,38 +102,5 @@ namespace NorthwindWebApi.Controllers
             return NotFound();
         }
 
-
-        // POST: api/Orders
-        // To protect from overposting attacks, enable the specific properties you want to bind to, for
-        // more details, see https://go.microsoft.com/fwlink/?linkid=2123754.
-        [HttpPost]
-        public async Task<ActionResult<Orders>> PostOrders(Orders orders)
-        {
-            northwindContext.Orders.Add(orders);
-            await northwindContext.SaveChangesAsync();
-
-            return CreatedAtAction("GetOrders", new { id = orders.OrderId }, orders);
-        }
-
-        // DELETE: api/Orders/5
-        [HttpDelete("{id}")]
-        public async Task<ActionResult<Orders>> DeleteOrders(int id)
-        {
-            var orders = await northwindContext.Orders.FindAsync(id);
-            if (orders == null)
-            {
-                return NotFound();
-            }
-
-            northwindContext.Orders.Remove(orders);
-            await northwindContext.SaveChangesAsync();
-
-            return orders;
-        }
-
-        private bool OrdersExists(int id)
-        {
-            return northwindContext.Orders.Any(e => e.OrderId == id);
-        }
     }
 }
